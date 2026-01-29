@@ -121,8 +121,10 @@
 
     <div class="card">
         <h2>Historie cen</h2>
-        <div class="input-group">
-            <input type="text" id="hist-search" placeholder="Zadejte název položky...">
+        <div class="input-group" style="display: flex; gap: 8px;">
+            <input type="text" id="hist-search" placeholder="Zadejte název položky..." style="flex: 1;">
+            <button class="btn" style="width: auto; padding: 8px 12px; background: #e8f0fe; color: #1a73e8;"
+                onclick="loadFromCell()" title="Načíst z vybrané buňky">📋</button>
         </div>
         <button class="btn btn-primary" onclick="showHistory()">🔍 Zobrazit graf</button>
 
@@ -158,6 +160,16 @@
                     btn.disabled = false;
                 })
                 .priceSelection(desc, price, priceType);
+        }
+
+        function loadFromCell() {
+            google.script.run
+                .withSuccessHandler((value) => {
+                    if (value) {
+                        document.getElementById('hist-search').value = value;
+                    }
+                })
+                .getActiveCellValue();
         }
 
         function showHistory() {

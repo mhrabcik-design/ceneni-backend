@@ -20,6 +20,14 @@ function showSidebar() {
 }
 
 /**
+ * Vrátí hodnotu aktuálně vybrané buňky
+ */
+function getActiveCellValue() {
+    const cell = SpreadsheetApp.getActiveSheet().getActiveCell();
+    return cell ? String(cell.getValue()) : '';
+}
+
+/**
  * Hlavní funkce pro ocenění vybrané oblasti
  * @param {string} descColLetter - Sloupec s popisem položky
  * @param {string} priceColLetter - Sloupec pro cenu
