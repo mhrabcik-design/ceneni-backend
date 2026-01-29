@@ -167,6 +167,61 @@ class PriceDatabase:
                 for r in rows
             ]
 
+    def get_item_details(self, item_id):
+        """Get full details for an item including name, all sources, and price history."""
+        with self.engine.connect() as conn:
+            # Get item name
+            item_stmt = select(self.items.c.name).where(self.items.c.id == item_id)
+            item_row = conn.execute(item_stmt).fetchone()
+            if not item_row:
+                return None
+            
+            # Get all price records from different sources
+            sources_stmt = select(
+                self.sources.c.vendor,
+                self.sources.c.date_offer,
+                self.prices.c.price_material,
+                self.prices.c.price_labor,
+                self.prices.c.unit
+            ).select_from(
+                self.prices.join(self.sources, self.prices.c.source_id == self.sources.c.id)
+            ).where(
+                self.prices.c.item_id == item_id
+            ).order_by(
+                self.sources.c.date_offer.desc()
+            )
+            
+            sources_rows = conn.execute(sources_stmt).fetchall()
+            
+            sources = [
+                {
+                    "vendor": r.vendor,
+                    "date": str(r.date_offer) if r.date_offer else None,
+                    "price_material": r.price_material,
+                    "price_labor": r.price_labor,
+                    "unit": r.unit
+                }
+                for r in sources_rows
+            ]
+            
+            # Build price history (unique dates with averaged prices)
+            price_history = []
+            seen_dates = set()
+            for s in sources:
+                if s['date'] and s['date'] not in seen_dates:
+                    seen_dates.add(s['date'])
+                    price_history.append({
+                        "date": s['date'],
+                        "price_material": s['price_material'],
+                        "price_labor": s['price_labor']
+                    })
+            
+            return {
+                "name": item_row.name,
+                "sources": sources,
+                "price_history": price_history
+            }
+
     # Legacy V1 search support
     def search(self, query, limit=20):
         # Similar logic to search_items but returns full details
@@ -210,8 +265,9 @@ class PriceDatabase:
                 
                 if overlap > 0:
                     score = (overlap * 2) + seq
-                    # Convert row to dict
+                    # Convert row to dict and add match_score
                     d = dict(r._mapping)
+                    d['match_score'] = round(seq, 2)  # 0-1 similarity ratio
                     scored.append((score, d))
             
             scored.sort(key=lambda x: x[0], reverse=True)

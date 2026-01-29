@@ -21,8 +21,11 @@ function showSidebar() {
 
 /**
  * Hlavní funkce pro ocenění vybrané oblasti
+ * @param {string} descColLetter - Sloupec s popisem položky
+ * @param {string} priceColLetter - Sloupec pro cenu
+ * @param {string} priceType - 'material' nebo 'labor'
  */
-function priceSelection(descColLetter, priceColLetter) {
+function priceSelection(descColLetter, priceColLetter, priceType) {
     const sheet = SpreadsheetApp.getActiveSheet();
     const range = sheet.getActiveRange();
     const values = range.getValues();
@@ -35,18 +38,23 @@ function priceSelection(descColLetter, priceColLetter) {
     let matchesFound = 0;
 
     for (let i = 0; i < values.length; i++) {
-        // Získáme text popisu ze správného sloupce v daném řádku (absolutně na listu)
         const currentRow = startRow + i;
         const description = sheet.getRange(currentRow, descCol).getValue();
 
         if (!description || String(description).length < 3) continue;
 
-        const match = fetchMatch(description);
+        const match = fetchMatch(description, priceType || 'material');
         if (match) {
-            // Zápis ceny do cílového sloupce
-            // Backend vrací 'price' (materiál) a 'price_labor' (práce)
-            const totalPrice = (match.price || 0) + (match.price_labor || 0);
-            sheet.getRange(currentRow, priceCol).setValue(totalPrice);
+            const priceCell = sheet.getRange(currentRow, priceCol);
+            priceCell.setValue(match.price || 0);
+
+            // Přidat poznámku s originálním názvem pro transparentnost
+            const note = `📦 ${match.original_name || 'N/A'}\n` +
+                `📊 Shoda: ${Math.round((match.match_score || 0) * 100)}%\n` +
+                `🏢 Zdroj: ${match.source || 'N/A'}\n` +
+                `📅 Datum: ${match.date || 'N/A'}\n` +
+                `🔗 ID: ${match.item_id || 'N/A'}`;
+            priceCell.setNote(note);
             matchesFound++;
         }
     }
@@ -64,15 +72,20 @@ function columnLetterToIndex(letter) {
 }
 
 /**
- * Volání vašeho lokálního Python backendu
+ * Volání backendu pro získání ceny
+ * @param {string} description - Popis položky
+ * @param {string} priceType - 'material' nebo 'labor'
  */
-function fetchMatch(description) {
+function fetchMatch(description, priceType) {
     const url = `${API_BASE_URL}/match`;
     const options = {
         'method': 'post',
         'contentType': 'application/json',
         'headers': { 'bypass-tunnel-reminder': 'true' },
-        'payload': JSON.stringify({ 'items': [description] }),
+        'payload': JSON.stringify({
+            'items': [description],
+            'type': priceType || 'material'
+        }),
         'muteHttpExceptions': true
     };
 
@@ -80,11 +93,35 @@ function fetchMatch(description) {
         const response = UrlFetchApp.fetch(url, options);
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
-            // Backend vrací dict: { "description": { data... } }
             return data[description] || null;
         }
     } catch (e) {
         Logger.log("Chyba při volání API: " + e.message);
+    }
+    return null;
+}
+
+/**
+ * Získá detaily položky pro sidebar (všechny zdroje, cenový graf)
+ */
+function getItemDetails(itemId) {
+    if (!itemId) return null;
+
+    const url = `${API_BASE_URL}/items/${itemId}/details`;
+    const options = {
+        'method': 'get',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            return JSON.parse(response.getContentText());
+        }
+    } catch (e) {
+        Logger.log("Chyba při načítání detailů: " + e.message);
     }
     return null;
 }

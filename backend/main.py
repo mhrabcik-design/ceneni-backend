@@ -33,21 +33,26 @@ class ItemSearchResponse(BaseModel):
 
 class MatchRequest(BaseModel):
     items: List[str]
+    type: Optional[str] = "material"  # "material" or "labor"
 
 @app.post("/match")
 def match_items(req: MatchRequest):
     results = {}
+    price_field = 'price_labor' if req.type == 'labor' else 'price_material'
+    
     for item in req.items:
         # Use fuzzy search from DB
         matches = manager.db.search(item, limit=1)
         if matches:
             best = matches[0]
             results[item] = {
-                "price": best.get('price_material', 0),
-                "price_labor": best.get('price_labor', 0),
+                "price": best.get(price_field, 0),
                 "unit": best.get('unit', 'ks'),
                 "source": best.get('source'),
-                "date": str(best.get('date'))
+                "date": str(best.get('date')),
+                "item_id": best.get('id'),
+                "original_name": best.get('item'),
+                "match_score": best.get('match_score', 0)
             }
     return results
 
@@ -72,6 +77,14 @@ def get_item_history(item_id: int):
     for r in results:
         r['date'] = str(r['date'])
     return results
+
+@app.get("/items/{item_id}/details")
+def get_item_details(item_id: int):
+    """Get full details for an item including all sources and price history."""
+    details = manager.db.get_item_details(item_id)
+    if not details:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return details
 
 @app.get("/status")
 def get_status():

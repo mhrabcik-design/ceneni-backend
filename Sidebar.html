@@ -109,6 +109,14 @@
             <label>Cílový sloupec pro cenu (F, G...)</label>
             <input type="text" id="col-price" value="F">
         </div>
+        <div class="input-group">
+            <label>Typ ceny</label>
+            <select id="price-type">
+                <option value="material">📦 Materiál</option>
+                <option value="labor">🔧 Montáž</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="runPricing()">🚀 Ocenit výběr</button>
     </div>
 
     <div class="card">
@@ -133,12 +141,23 @@
         function runPricing() {
             const desc = document.getElementById('col-desc').value;
             const price = document.getElementById('col-price').value;
+            const priceType = document.getElementById('price-type').value;
+
+            const btn = document.querySelector('button[onclick="runPricing()"]');
+            btn.innerText = "⏳ Zpracovávám...";
+            btn.disabled = true;
 
             google.script.run
                 .withSuccessHandler(() => {
-                    // Hotovo
+                    btn.innerText = "🚀 Ocenit výběr";
+                    btn.disabled = false;
                 })
-                .priceSelection(desc, price);
+                .withFailureHandler((err) => {
+                    alert("Chyba: " + err);
+                    btn.innerText = "🚀 Ocenit výběr";
+                    btn.disabled = false;
+                })
+                .priceSelection(desc, price, priceType);
         }
 
         function showHistory() {
