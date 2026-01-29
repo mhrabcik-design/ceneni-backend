@@ -12,27 +12,22 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backen
 
 from database.price_db import PriceDatabase
 
-# Klíčová slova pro odstranění (součty kapitol, hlavičky)
-BLACKLIST_KEYWORDS = [
+# Klíčová slova pro odstranění - POUZE položky které ZAČÍNAJÍ těmito slovy
+# Toto jsou opravdu jen součty kapitol, ne validní položky
+BLACKLIST_STARTSWITH = [
     'celkem',
     'součet',
-    'mezisoučet',
+    'mezisoučet', 
     'total',
+    'základ daně',
+    'dph ',
+    'dph:',
+]
+
+# Přesné shody - položky které jsou přesně tento text
+BLACKLIST_EXACT = [
     'silnoproud',
     'slaboproud',
-    'vzduchotechnika',
-    'měření a regulace',
-    'zdravotechnika',
-    'elektroinstalace',
-    'vytápění',
-    'chlazení',
-    'přípojky',
-    'přeložky',
-    'osvětlení kapitola',
-    'základ daně',
-    'dph',
-    'recyklační',
-    'autorský',
 ]
 
 def cleanup_database():
@@ -52,19 +47,19 @@ def cleanup_database():
         items = conn.execute(text("SELECT id, name FROM items")).fetchall()
         
         for item in items:
-            item_id, name = item.id, item.name.lower()
+            item_id, name = item.id, item.name.lower().strip()
             
-            # Kontrola zda název obsahuje blacklist klíčové slovo
             should_delete = False
-            for keyword in BLACKLIST_KEYWORDS:
-                if keyword in name:
+            
+            # Kontrola 1: Začíná některým z klíčových slov součtů?
+            for keyword in BLACKLIST_STARTSWITH:
+                if name.startswith(keyword):
                     should_delete = True
                     break
             
-            # Také smazat položky, které jsou pouze čísla nebo velmi krátké
+            # Kontrola 2: Je to přesná shoda s obecným názvem kapitoly?
             if not should_delete:
-                clean_name = ''.join(c for c in name if c.isalpha())
-                if len(clean_name) < 3:
+                if name in BLACKLIST_EXACT:
                     should_delete = True
             
             if should_delete:
