@@ -44,9 +44,8 @@ function priceSelection(descColLetter, priceColLetter) {
         const match = fetchMatch(description);
         if (match) {
             // Zápis ceny do cílového sloupce
-            // Poznámka: v construction budgetu často dáváme součet materiál+montáž, nebo jen jednu z nich
-            // Zde dáváme součet pro zjednodušení, nebo můžete upravit.
-            const totalPrice = match.price_material + match.price_labor;
+            // Backend vrací 'price' (materiál) a 'price_labor' (práce)
+            const totalPrice = (match.price || 0) + (match.price_labor || 0);
             sheet.getRange(currentRow, priceCol).setValue(totalPrice);
             matchesFound++;
         }

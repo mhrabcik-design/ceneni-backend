@@ -1,6 +1,7 @@
 import google.generativeai as genai
 import os
 import json
+import re
 import time
 from dotenv import load_dotenv
 
@@ -21,79 +22,86 @@ class AIExtractor:
         """
         
         if file_type == 'internal':
-            prompt = f"""
-            You are a Specific Data Extractor for Internal construction budgets (Excel).
-            
-            GOAL: Extract 'Montáž A' (Labor Cost) and 'Dodávka A' (Material Cost) for items.
-            The input comes from an Excel where columns often are: "Dodávka A", "Koef", "Dodávka C", "Montáž A", "Koef", "Montáž C".
-            
-            EXTRACT FORMAT (JSON ONLY):
-            {{
-                "vendor": "Internal History",
-                "date": "2024-01-01 (approx, or found in text)",
-                "items": [
-                    {{
-                        "raw_name": "Item Description",
-                        "price_material": 0.0 (Value from 'Dodávka A'),
-                        "price_labor": 0.0 (Value from 'Montáž A'),
-                        "unit": "m2/ks...",
-                         "quantity": 1.0
-                    }}
-                ]
-            }}
-            
-            RULES:
-            1. Focus heavily on finding the "Montáž A" value. 
-            2. If you see value 0 for material but valid for labor, that's fine.
-            3. Ignore rows that are just headers or sums.
-            
-            SOURCE FILE: {filename}
-            CONTENT:
-            {text_content[:30000]}
-            """
-        else:
-            # Supplier Quote Logic (Default)
-            prompt = f"""
-            You are a Data Extraction Assistant. I will provide text from a construction offer (PDF/Excel).
-            
-            EXTRACT FORMAT (JSON ONLY):
-            {{
-                "vendor": "Name of the company (or Unknown)",
-                "date": "YYYY-MM-DD (or null if not found)",
-                "items": [
-                    {{
-                        "raw_name": "Exact text description from the line",
-                        "price_material": 0.0 (float, 0 if missing),
-                        "price_labor": 0.0 (float, 0 if missing),
-                        "unit": "m2/ks/kpl...",
-                        "quantity": 1.0 (float, or null)
-                    }}
-                ]
-            }}
+            prompt = f"""Jsi Data Extractor pro interní stavební rozpočty (Excel).
 
-            RULES:
-            1. STRICTLY IGNORE rows containing: "Celkem", "Součet", "DPH", "Mezisoučet", "Total", "Recyklační", "Autorský", "Základ daně".
-            2. Header rows (chapter names) usually lack a unit price -> Ignore them.
-            3. Focus on line items that have a QUANTITY, UNIT, and UNIT PRICE.
-            4. If a line splits material and labor, extract both. If only one price, put it in 'price_material'.
-            5. Do NOT extract the total project price as an item.
-            
-            SOURCE FILE: {filename}
-            CONTENT:
-            {text_content[:30000]} 
-            """
+ÚKOL: Extrahuj položky s cenami 'Montáž A' (práce) a 'Dodávka A' (materiál).
+
+VÝSTUP - POUZE PLATNÝ JSON (nic jiného!):
+{{
+    "vendor": "Internal",
+    "date": null,
+    "items": [
+        {{"raw_name": "Popis položky", "price_material": 123.45, "price_labor": 67.89, "unit": "ks", "quantity": 1.0}}
+    ]
+}}
+
+PRAVIDLA:
+1. Každá položka MUSÍ mít raw_name (text popisu).
+2. price_material = cena materiálu BEZ DPH (Dodávka A).
+3. price_labor = cena práce BEZ DPH (Montáž A).
+4. Ignoruj řádky: Celkem, Součet, DPH, Mezisoučet, Total.
+
+SOUBOR: {filename}
+OBSAH:
+{text_content[:25000]}
+
+ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM:"""
+        else:
+            prompt = f"""Jsi Data Extractor pro nabídky dodavatelů stavebního materiálu.
+
+ÚKOL: Extrahuj VŠECHNY položky s cenami z nabídky. Hledej tabulky s položkami.
+
+VÝSTUP - POUZE PLATNÝ JSON (nic jiného, žádný text před ani za!):
+{{
+    "vendor": "Název firmy",
+    "date": "YYYY-MM-DD",
+    "items": [
+        {{"raw_name": "Přesný popis položky z dokumentu", "price_material": 123.45, "price_labor": 0.0, "unit": "ks", "quantity": 1.0}}
+    ]
+}}
+
+PRAVIDLA:
+1. raw_name = PŘESNÝ text popisu z dokumentu (např. "Krabice KO 68 pod omítku").
+2. price_material = jednotková cena BEZ DPH (hledej sloupec "cena MJ bez DPH" nebo "po slevě bez DPH").
+3. price_labor = obvykle 0 pro dodavatelské nabídky.
+4. unit = měrná jednotka (ks, m, m2, kpl, sada...).
+5. quantity = množství.
+6. IGNORUJ řádky: Celkem, Součet, DPH, Základ daně, Mezisoučet, Total, Recyklační.
+7. IGNORUJ řádky bez jednotkové ceny (hlavičky kapitol).
+8. Extrahuj i krabice, svorky, trubky, kabely - VŠECHNY položky!
+
+SOUBOR: {filename}
+OBSAH:
+{text_content[:25000]}
+
+ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM (začni {{ a skonči }}):"""
 
         try:
             response = self.model.generate_content(prompt)
-            return self._parse_json(response.text)
+            raw = response.text
+            # Debug: print first 500 chars of response
+            print(f"DEBUG AI Response (first 500 chars): {raw[:500]}")
+            return self._parse_json(raw)
         except Exception as e:
             print(f"Detail AI Error: {e}")
             return None
 
     def _parse_json(self, text):
-        clean_text = text.replace("```json", "").replace("```", "").strip()
+        # Remove markdown code blocks if present
+        text = text.replace("```json", "").replace("```", "").strip()
+        
+        # Try to find JSON object in the text
+        json_match = re.search(r'\{[\s\S]*\}', text)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError as e:
+                print(f"JSON parse error: {e}")
+                print(f"Attempted to parse: {json_match.group()[:300]}...")
+        
+        # Fallback: try parsing entire text
         try:
-            return json.loads(clean_text)
+            return json.loads(text)
         except json.JSONDecodeError:
-            print("Failed to parse JSON from AI response")
+            print(f"Failed to parse JSON. Raw text: {text[:500]}...")
             return None
