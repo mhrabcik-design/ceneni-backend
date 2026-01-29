@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+openpyxl
+python-dotenv
+google-generativeai
+google-genai
+requests
+sqlalchemy
+psycopg2-binary
+tomli
