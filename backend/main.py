@@ -86,6 +86,31 @@ def get_item_details(item_id: int):
         raise HTTPException(status_code=404, detail="Item not found")
     return details
 
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int):
+    """Delete an item and all its prices (blacklist)."""
+    success = manager.db.delete_item(item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"status": "deleted", "item_id": item_id}
+
+class AddPriceRequest(BaseModel):
+    name: str
+    price_material: float = 0.0
+    price_labor: float = 0.0
+    unit: str = "ks"
+
+@app.post("/items/add")
+def add_custom_item(req: AddPriceRequest):
+    """Add a user-defined item with custom price."""
+    item_id = manager.db.add_custom_item(
+        name=req.name,
+        price_material=req.price_material,
+        price_labor=req.price_labor,
+        unit=req.unit
+    )
+    return {"status": "added", "item_id": item_id, "name": req.name}
+
 @app.get("/status")
 def get_status():
     try:

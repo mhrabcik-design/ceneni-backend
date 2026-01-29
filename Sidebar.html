@@ -134,6 +134,30 @@
         </div>
     </div>
 
+    <div class="card">
+        <h2>⚙️ Feedback</h2>
+        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Vyberte buňku s oceněním a použijte akce níže.</p>
+
+        <button class="btn" style="background: #fce8e6; color: #c5221f;" onclick="blacklistItem()">🗑️ Smazat položku z
+            DB</button>
+
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+            <p style="font-size: 11px; color: #666; margin-bottom: 8px;">Přidat vlastní cenu:</p>
+            <div class="input-group">
+                <input type="text" id="custom-name" placeholder="Název položky">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <div class="input-group" style="flex: 1;">
+                    <input type="number" id="custom-price-mat" placeholder="Materiál" step="0.01">
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <input type="number" id="custom-price-lab" placeholder="Montáž" step="0.01">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="addCustomPrice()">➕ Přidat do DB</button>
+        </div>
+    </div>
+
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -167,9 +191,71 @@
                 .withSuccessHandler((value) => {
                     if (value) {
                         document.getElementById('hist-search').value = value;
+                        // Také vyplnit název pro custom cenu
+                        document.getElementById('custom-name').value = value;
                     }
                 })
                 .getActiveCellValue();
+        }
+
+        function blacklistItem() {
+            if (!confirm("Opravdu chcete smazat tuto položku z databáze?")) return;
+
+            google.script.run
+                .withSuccessHandler((itemId) => {
+                    if (!itemId) {
+                        alert("Vyberte buňku s oceněním (musí mít poznámku s ID).");
+                        return;
+                    }
+
+                    google.script.run
+                        .withSuccessHandler((result) => {
+                            if (result.success) {
+                                alert("Položka smazána z databáze.");
+                            } else {
+                                alert("Chyba: " + (result.error || "Neznámá chyba"));
+                            }
+                        })
+                        .deleteItem(itemId);
+                })
+                .getItemIdFromActiveCell();
+        }
+
+        function addCustomPrice() {
+            const name = document.getElementById('custom-name').value;
+            const priceMat = parseFloat(document.getElementById('custom-price-mat').value) || 0;
+            const priceLab = parseFloat(document.getElementById('custom-price-lab').value) || 0;
+
+            if (!name) {
+                alert("Zadejte název položky.");
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="addCustomPrice()"]');
+            btn.innerText = "⏳ Ukládám...";
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler((result) => {
+                    btn.innerText = "➕ Přidat do DB";
+                    btn.disabled = false;
+
+                    if (result.success) {
+                        alert("Položka přidána do databáze!");
+                        // Vyčistit formulář
+                        document.getElementById('custom-name').value = '';
+                        document.getElementById('custom-price-mat').value = '';
+                        document.getElementById('custom-price-lab').value = '';
+                    } else {
+                        alert("Chyba: " + (result.error || "Neznámá chyba"));
+                    }
+                })
+                .withFailureHandler((err) => {
+                    btn.innerText = "➕ Přidat do DB";
+                    btn.disabled = false;
+                    alert("Chyba: " + err);
+                })
+                .addCustomItem(name, priceMat, priceLab, 'ks');
         }
 
         function showHistory() {

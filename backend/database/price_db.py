@@ -53,6 +53,59 @@ class PriceDatabase:
             except Exception as e:
                 return {"items": 0, "prices": 0, "url": str(self.engine.url), "error": str(e)}
 
+    def delete_item(self, item_id):
+        """Delete an item and all its prices (blacklist functionality)."""
+        with self.engine.connect() as conn:
+            # Check if item exists
+            check = conn.execute(select(self.items.c.id).where(self.items.c.id == item_id)).scalar()
+            if not check:
+                return False
+            
+            # Delete prices first (foreign key)
+            conn.execute(self.prices.delete().where(self.prices.c.item_id == item_id))
+            # Delete item
+            conn.execute(self.items.delete().where(self.items.c.id == item_id))
+            conn.commit()
+            return True
+
+    def add_custom_item(self, name, price_material, price_labor, unit):
+        """Add a user-defined item with custom price."""
+        with self.engine.connect() as conn:
+            norm_name = name.lower().strip()
+            
+            # Check if item already exists
+            existing = conn.execute(select(self.items.c.id).where(self.items.c.name == name)).scalar()
+            if existing:
+                item_id = existing
+            else:
+                # Create new item
+                result = conn.execute(self.items.insert().values(name=name, normalized_name=norm_name))
+                item_id = result.inserted_primary_key[0]
+            
+            # Get or create "User Input" source
+            source_name = "user_input"
+            source_id = conn.execute(select(self.sources.c.id).where(self.sources.c.filename == source_name)).scalar()
+            if not source_id:
+                from datetime import date
+                result = conn.execute(self.sources.insert().values(
+                    filename=source_name,
+                    vendor="Uživatel",
+                    date_offer=date.today()
+                ))
+                source_id = result.inserted_primary_key[0]
+            
+            # Add price
+            conn.execute(self.prices.insert().values(
+                item_id=item_id,
+                source_id=source_id,
+                price_material=price_material,
+                price_labor=price_labor,
+                unit=unit,
+                quantity=1.0
+            ))
+            conn.commit()
+            return item_id
+
     def add_processed_file(self, filename, vendor, date_offer, items):
         with self.engine.connect() as conn:
             # 1. Add/Get Source

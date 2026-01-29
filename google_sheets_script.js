@@ -144,6 +144,79 @@ function getItemDetails(itemId) {
     return null;
 }
 
+/**
+ * Smaže položku z databáze (blacklist)
+ */
+function deleteItem(itemId) {
+    if (!itemId) return { success: false, error: "Chybí ID položky" };
+
+    const url = `${API_BASE_URL}/items/${itemId}`;
+    const options = {
+        'method': 'delete',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            return { success: true };
+        } else {
+            return { success: false, error: response.getContentText() };
+        }
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Přidá vlastní položku do databáze
+ */
+function addCustomItem(name, priceMaterial, priceLabor, unit) {
+    if (!name) return { success: false, error: "Chybí název položky" };
+
+    const url = `${API_BASE_URL}/items/add`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify({
+            'name': name,
+            'price_material': priceMaterial || 0,
+            'price_labor': priceLabor || 0,
+            'unit': unit || 'ks'
+        }),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            return { success: true, data: JSON.parse(response.getContentText()) };
+        } else {
+            return { success: false, error: response.getContentText() };
+        }
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Získá ID položky z poznámky vybrané buňky
+ */
+function getItemIdFromActiveCell() {
+    const cell = SpreadsheetApp.getActiveSheet().getActiveCell();
+    if (!cell) return null;
+
+    const note = cell.getNote();
+    if (!note) return null;
+
+    // Hledáme "🔗 ID: 123" v poznámce
+    const match = note.match(/🔗 ID: (\d+)/);
+    return match ? parseInt(match[1]) : null;
+}
+
 
 /**
  * Získá historii cen pro danou položku (pro graf)
