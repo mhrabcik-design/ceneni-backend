@@ -56,9 +56,19 @@ function priceSelection(descColLetter, priceColLetter, priceType) {
             const priceCell = sheet.getRange(currentRow, priceCol);
             priceCell.setValue(match.price || 0);
 
+            // Barva podle kvality shody
+            const matchScore = match.match_score || 0;
+            if (matchScore < 0.6) {
+                // Nízká shoda - oranžová (varování)
+                priceCell.setBackground('#fff3cd');
+            } else {
+                // Dobrá shoda - reset na výchozí
+                priceCell.setBackground(null);
+            }
+
             // Přidat poznámku s originálním názvem pro transparentnost
             const note = `📦 ${match.original_name || 'N/A'}\n` +
-                `📊 Shoda: ${Math.round((match.match_score || 0) * 100)}%\n` +
+                `📊 Shoda: ${Math.round(matchScore * 100)}%\n` +
                 `🏢 Zdroj: ${match.source || 'N/A'}\n` +
                 `📅 Datum: ${match.date || 'N/A'}\n` +
                 `🔗 ID: ${match.item_id || 'N/A'}`;
