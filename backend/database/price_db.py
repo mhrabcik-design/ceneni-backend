@@ -53,7 +53,7 @@ class PriceDatabase:
             except Exception as e:
                 return {"items": 0, "prices": 0, "url": str(self.engine.url), "error": str(e)}
 
-    def add_processed_file(self, filename, vendor, date_offer, items_list):
+    def add_processed_file(self, filename, vendor, date_offer, items):
         with self.engine.connect() as conn:
             # 1. Add/Get Source
             # Check existence
@@ -78,7 +78,7 @@ class PriceDatabase:
                 
             # 2. Add Items & Prices
             # Prepare data
-            for it in items_list:
+            for it in items:
                 name = it.get('raw_name') or it.get('item')
                 if not name: continue
                 norm_name = name.lower().strip()

@@ -3,7 +3,7 @@
  * Tento kód vložte do: Rozšíření -> Apps Script
  */
 
-const API_BASE_URL = "https://ceneni-backup.loca.lt"; // Záložní URL (Tailscale Funnel se připravuje)
+const API_BASE_URL = "https://ceneni-backend.onrender.com"; // Cloud Backend (Render + Supabase)
 
 function onOpen() {
     const ui = SpreadsheetApp.getUi();
@@ -73,7 +73,7 @@ function fetchMatch(description) {
         'method': 'post',
         'contentType': 'application/json',
         'headers': { 'bypass-tunnel-reminder': 'true' },
-        'payload': JSON.stringify({ 'description': description }),
+        'payload': JSON.stringify({ 'items': [description] }),
         'muteHttpExceptions': true
     };
 
@@ -81,7 +81,8 @@ function fetchMatch(description) {
         const response = UrlFetchApp.fetch(url, options);
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
-            return data; // Může být null, pokud backend vrátí null
+            // Backend vrací dict: { "description": { data... } }
+            return data[description] || null;
         }
     } catch (e) {
         Logger.log("Chyba při volání API: " + e.message);
