@@ -20,9 +20,11 @@ class PriceDatabase:
         # Table Definitions
         self.sources = Table('sources', self.metadata,
             Column('id', Integer, primary_key=True),
-            Column('filename', String, unique=True),
+            Column('filename', String),
             Column('vendor', String),
             Column('date_offer', Date),
+            Column('offer_number', String),
+            Column('file_hash', String, unique=True),
             Column('created_at', DateTime, server_default=func.now())
         )
         
@@ -106,26 +108,49 @@ class PriceDatabase:
             conn.commit()
             return item_id
 
-    def add_processed_file(self, filename, vendor, date_offer, items):
+    def check_file_exists(self, file_hash=None, offer_number=None):
+        """Check if a file with same hash or offer number exists."""
+        with self.engine.connect() as conn:
+            if file_hash:
+                s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.file_hash == file_hash)
+                row = conn.execute(s).fetchone()
+                if row: return {"type": "hash", "filename": row.filename, "vendor": row.vendor}
+            
+            if offer_number:
+                s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.offer_number == offer_number)
+                row = conn.execute(s).fetchone()
+                if row: return {"type": "offer", "filename": row.filename, "vendor": row.vendor}
+        return None
+
+    def add_processed_file(self, filename, vendor, date_offer, items, file_hash=None, offer_number=None):
         with self.engine.connect() as conn:
             # 1. Add/Get Source
-            # Check existence
-            s = select(self.sources.c.id).where(self.sources.c.filename == filename)
+            # Check existence by hash/offer if provided, else filename
+            if file_hash:
+                s = select(self.sources.c.id).where(self.sources.c.file_hash == file_hash)
+            elif offer_number:
+                s = select(self.sources.c.id).where(self.sources.c.offer_number == offer_number)
+            else:
+                s = select(self.sources.c.id).where(self.sources.c.filename == filename)
+            
             source_id = conn.execute(s).scalar()
             
             if not source_id:
                 stmt = self.sources.insert().values(
                     filename=filename, 
                     vendor=vendor, 
-                    date_offer=date_offer
+                    date_offer=date_offer,
+                    file_hash=file_hash,
+                    offer_number=offer_number
                 )
                 result = conn.execute(stmt)
                 source_id = result.inserted_primary_key[0]
             else:
-                # Update existing source? For now, keep as is or update date.
-                # Assuming overwrite logic:
+                # Update existing source metadata
                 stmt = self.sources.update().where(self.sources.c.id == source_id).values(
-                    vendor=vendor, date_offer=date_offer
+                    vendor=vendor, 
+                    date_offer=date_offer,
+                    offer_number=offer_number
                 )
                 conn.execute(stmt)
                 

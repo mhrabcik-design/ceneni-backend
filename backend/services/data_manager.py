@@ -3,6 +3,7 @@ from datetime import datetime
 from database.price_db import PriceDatabase
 from services.ai_extractor import AIExtractor
 import pandas as pd
+import hashlib
 
 class DataManager:
     def __init__(self, db_url=None):
@@ -15,7 +16,7 @@ class DataManager:
             print("Warning: AI Extractor not initialized (Missing Key?)")
             self.ai = None
 
-    def process_file(self, filepath: str):
+    def process_file(self, filepath: str, file_type_override: str = None):
         """
         Main entry point. Reads file, sends to AI, saves to DB.
         """
@@ -23,37 +24,60 @@ class DataManager:
             return {"error": "AI not ready"}
 
         try:
-            # 1. Determine Type based on folder
-            # Simple heuristic: if path contains "02_Historie" -> internal
-            # (In production, maybe check parent folder name more strictly)
-            file_type = 'supplier'
-            if '02_Historie' in filepath or 'internal' in filepath.lower():
-                file_type = 'internal'
+            # 1. Calculate Hash & Check Duplicates
+            file_hash = self._calculate_file_hash(filepath)
+            
+            # 2. Determine Type
+            file_type = file_type_override
+            if not file_type:
+                file_type = 'supplier'
+                if '02_Historie' in filepath or 'internal' in filepath.lower():
+                    file_type = 'internal'
 
-            # 2. Read Content
+            # 3. Read Content
             content = self._read_file_content(filepath)
             
-            # 3. Extract with Type
+            # 4. Extract with AI
             data = self.ai.extract_from_text(content, os.path.basename(filepath), file_type=file_type)
             
             if not data or not data.get('items'):
                 return {"status": "skipped", "reason": "No data found by AI"}
 
-            # 4. Validate & Normalize Date
+            offer_number = data.get('offer_number')
+            
+            # 5. Final Duplicate Check (Hash + Offer Number)
+            existing = self.db.check_file_exists(file_hash=file_hash, offer_number=offer_number)
+            if existing:
+                return {
+                    "status": "duplicate", 
+                    "reason": f"File already exists (Matched by {existing['type']}). Original: {existing['filename']} by {existing['vendor']}",
+                    "details": existing
+                }
+
+            # 6. Validate & Normalize Date
             offer_date = self._determine_date(data.get('date'), filepath)
             
-            # 5. Save
+            # 7. Save
             source_id = self.db.add_processed_file(
                 filename=os.path.basename(filepath),
                 vendor=data.get('vendor', 'Unknown'),
                 date_offer=offer_date,
-                items=data['items']
+                items=data['items'],
+                file_hash=file_hash,
+                offer_number=offer_number
             )
             
             return {"status": "success", "type": file_type, "items_count": len(data['items']), "source_id": source_id}
             
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+    def _calculate_file_hash(self, filepath):
+        hasher = hashlib.sha256()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
 
     def _read_file_content(self, filepath):
         ext = os.path.splitext(filepath)[1].lower()

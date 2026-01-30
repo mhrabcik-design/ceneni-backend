@@ -18,11 +18,10 @@ def clear_database():
     
     db = PriceDatabase(db_url)
     
-    with db.engine.connect() as conn:
-        conn.execute(text("DELETE FROM prices"))
-        conn.execute(text("DELETE FROM items"))
-        conn.execute(text("DELETE FROM sources"))
-        conn.commit()
+    print("🧹 Dropping all tables...")
+    db.metadata.drop_all(db.engine)
+    print("🏗️ Creating fresh tables...")
+    db.metadata.create_all(db.engine)
     
     stats = db.get_stats()
     print(f"✅ Hotovo. Items: {stats['items']}, Prices: {stats['prices']}")

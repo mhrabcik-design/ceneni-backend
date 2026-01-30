@@ -218,6 +218,32 @@ ceneni/
 
 ---
 
+## 🏗️ Phase 6: Advanced Upload Panel (MANDATORY) - PLANNED
+> **Goal:** High-end standalone sidebar for effortless data ingestion without local Python knowledge.
+
+### 1. UX/UI Features (Premium Design)
+- **Glassmorphism Aesthetic:** Modern, sleek interface with blurred backdrops and vibrant accents.
+- **Drag-and-Drop:** Intuitive file upload zone.
+- **Explicit Type Selection:**
+  - 📦 **Materiální nabídka** (Vendor PDF) -> Extracts Material prices.
+  - 🔨 **Historický rozpočet** (Internal Excel) -> Extracts Labor prices (Montáž A).
+- **Batch Processing Dashboard:**
+  - Visual progress bars for each file.
+  - Success/Error reporting with detailed AI reasoning if skipped.
+  - Confetti celebration on batch completion.
+
+### 2. Intelligent Deduplication (Safety First)
+- **Offer Number Matching:** AI automatically extracts the "Číslo nabídky" from the PDF. If this number already exists in the database, the upload is blocked to prevent duplicate prices.
+- **Content Hashing:** Every uploaded file is hashed (SHA-256). If you try to upload the exact same file under a different name, the system will recognize it and skip processing.
+- **Audit Log:** View a list of "Všechny zpracované zdroje" přímo v panelu, abyste věděli, co už v systému je.
+
+### 3. Technical Stack
+- **Frontend:** HTML5, Modern CSS (Glassmorphism), Vanilla JS (Fetch API).
+- **Apps Script:** `UploadPanel.html` + `showUploadPanel()` bridge.
+- **Backend:** Updated `/ingest/upload` endpoint to support `file_type` override and deduplication logic.
+
+---
+
 ## 📅 10. Development Log
 
 ### 2025-01-30: Admin & Bulk Sync

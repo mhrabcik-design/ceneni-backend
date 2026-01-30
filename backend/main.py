@@ -125,14 +125,14 @@ def get_status():
         return {"status": "error", "message": str(e)}
 
 @app.post("/ingest/upload")
-async def ingest_file(file: UploadFile = File(...)):
+async def ingest_file(file: UploadFile = File(...), file_type: Optional[str] = Form(None)):
     temp_path = f"Input/temp_{file.filename}"
     os.makedirs("Input", exist_ok=True)
     
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    result = manager.process_file(temp_path)
+    result = manager.process_file(temp_path, file_type_override=file_type)
     
     # Cleanup
     if os.path.exists(temp_path):

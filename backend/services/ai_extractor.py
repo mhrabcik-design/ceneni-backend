@@ -52,9 +52,9 @@ ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM:"""
 ÚKOL: Extrahuj VŠECHNY položky s cenami z nabídky. Hledej tabulky s položkami.
 
 VÝSTUP - POUZE PLATNÝ JSON (nic jiného, žádný text před ani za!):
-{{
     "vendor": "Název firmy",
     "date": "YYYY-MM-DD",
+    "offer_number": "Číslo nabídky/zakázky",
     "items": [
         {{"raw_name": "Přesný popis položky z dokumentu", "price_material": 123.45, "price_labor": 0.0, "unit": "ks", "quantity": 1.0}}
     ]
@@ -66,9 +66,10 @@ PRAVIDLA:
 3. price_labor = obvykle 0 pro dodavatelské nabídky.
 4. unit = měrná jednotka (ks, m, m2, kpl, sada...).
 5. quantity = množství.
-6. IGNORUJ řádky: Celkem, Součet, DPH, Základ daně, Mezisoučet, Total, Recyklační.
-7. IGNORUJ řádky bez jednotkové ceny (hlavičky kapitol).
-8. Extrahuj i krabice, svorky, trubky, kabely - VŠECHNY položky!
+6. offer_number = najdi číslo nabídky/zakázky (např. "Nabídka č. 202401").
+7. IGNORUJ řádky: Celkem, Součet, DPH, Základ daně, Mezisoučet, Total, Recyklační.
+8. IGNORUJ řádky bez jednotkové ceny (hlavičky kapitol).
+9. Extrahuj i krabice, svorky, trubky, kabely - VŠECHNY položky!
 
 SOUBOR: {filename}
 OBSAH:
