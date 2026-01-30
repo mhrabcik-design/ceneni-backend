@@ -151,7 +151,7 @@ function getItemDetails(itemId) {
 }
 
 /**
- * Smaže položku z databáze (blacklist)
+ * Smaže položku z databáze (blacklist) a případně i z listu ADMIN_DATABASE
  */
 function deleteItem(itemId) {
     if (!itemId) return { success: false, error: "Chybí ID položky" };
@@ -167,6 +167,17 @@ function deleteItem(itemId) {
     try {
         const response = UrlFetchApp.fetch(url, options);
         if (response.getResponseCode() === 200) {
+            // Pokud jsme v ADMIN_DATABASE, smažeme řádek i vizuálně
+            const sheet = SpreadsheetApp.getActiveSheet();
+            if (sheet.getName() === "ADMIN_DATABASE") {
+                const data = sheet.getDataRange().getValues();
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i][0] == itemId) {
+                        sheet.deleteRow(i + 1);
+                        break;
+                    }
+                }
+            }
             return { success: true };
         } else {
             return { success: false, error: response.getContentText() };
@@ -209,18 +220,35 @@ function addCustomItem(name, priceMaterial, priceLabor, unit) {
 }
 
 /**
- * Získá ID položky z poznámky vybrané buňky
+ * Získá ID položky z aktuálně vybraného řádku.
+ * Funguje buď v listu ADMIN_DATABASE (bere ID ze sloupce A) 
+ * nebo v rozpočtu (bere ID z poznámky).
  */
 function getItemIdFromActiveCell() {
-    const cell = SpreadsheetApp.getActiveSheet().getActiveCell();
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const cell = sheet.getActiveCell();
     if (!cell) return null;
 
-    const note = cell.getNote();
-    if (!note) return null;
+    // 1. Speciální logika pro ADMIN_DATABASE (ID je v prvním sloupci)
+    if (sheet.getName() === "ADMIN_DATABASE") {
+        const idValue = sheet.getRange(cell.getRow(), 1).getValue();
+        return idValue && !isNaN(idValue) ? parseInt(idValue) : null;
+    }
 
-    // Hledáme "🔗 ID: 123" v poznámce
-    const match = note.match(/🔗 ID: (\d+)/);
-    return match ? parseInt(match[1]) : null;
+    // 2. Logika pro rozpočet - hledáme v poznámkách (v buňce nebo v celém řádku)
+    let note = cell.getNote();
+    if (!note) {
+        // Prohledat prvních 25 sloupců řádku pro nalezení poznámky s ID
+        const rowNotes = sheet.getRange(cell.getRow(), 1, 1, Math.min(sheet.getLastColumn(), 25)).getNotes()[0];
+        note = rowNotes.find(n => n && n.includes('🔗 ID:'));
+    }
+
+    if (note) {
+        const match = note.match(/🔗 ID: (\d+)/);
+        return match ? parseInt(match[1]) : null;
+    }
+
+    return null;
 }
 
 
@@ -375,28 +403,41 @@ function syncAdminSheet() {
 
 /**
  * Vyfiltruje ADMIN_DATABASE podle názvu položky.
- * Prioritně bere "Originální název" z poznámky (pokud existuje), jinak obsah buňky.
+ * Pokud aktivní buňka nemá poznámku, prohledá řádek a zkusí najít poznámku s ID/Názvem.
  */
 function filterAdminSheetBySelection() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const activeCell = ss.getActiveCell();
-    const note = activeCell.getNote();
+    const sheet = ss.getActiveSheet();
+    const activeRow = activeCell.getRow();
 
+    let note = activeCell.getNote();
     let query = activeCell.getValue();
-    let filterColumn = 2; // Výchozí: sloupec "Název"
+    let filterColumn = 2; // Výchozí: sloupec "Název" (Admin DB)
 
+    // 1. Pokud aktivní buňka nemá poznámku, zkusíme ji najít v rámci stejného řádku
+    if (!note) {
+        const rowRange = sheet.getRange(activeRow, 1, 1, Math.min(sheet.getLastColumn(), 25));
+        const rowNotes = rowRange.getNotes()[0];
+        for (let i = 0; i < rowNotes.length; i++) {
+            if (rowNotes[i] && rowNotes[i].includes('📦')) {
+                note = rowNotes[i];
+                break;
+            }
+        }
+    }
+
+    // 2. Pokud jsme našli poznámku (v buňce nebo v řádku), vytáhneme z ní data
     if (note) {
-        // 1. Zkusíme vytáhnout přesný název z poznámky (za ikonkou krabice)
-        const nameMatch = note.match(/📦 (.*)\n/);
-        // 2. Také zkusíme ID (pro jistotu, ale název je pro filtraci víc "relevantní")
+        const nameMatch = note.match(/📦 (.*)/);
         const idMatch = note.match(/🔗 ID: (\d+)/);
 
         if (nameMatch && nameMatch[1]) {
-            query = nameMatch[1];
-            filterColumn = 2; // Filtrujeme podle názvu
+            query = nameMatch[1].trim().split('\n')[0]; // První řádek za ikonkou
+            filterColumn = 2;
         } else if (idMatch && idMatch[1]) {
             query = idMatch[1];
-            filterColumn = 1; // Filtrujeme podle ID
+            filterColumn = 1;
         }
     }
 
@@ -411,7 +452,7 @@ function filterAdminSheetBySelection() {
         return;
     }
 
-    // Reset filtru
+    // Reset a aplikace filtru
     let filter = adminSheet.getFilter();
     if (filter) filter.remove();
 
