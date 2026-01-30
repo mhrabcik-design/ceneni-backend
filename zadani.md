@@ -199,7 +199,7 @@ ceneni/
 
 ---
 
-### Phase 5: Bulk Database Editing (Admin Sheet) - IN PROGRESS
+### Phase 5: Bulk Database Editing (Admin Sheet) (✅ COMPLETE)
 - [x] **Backend Export:** Endpoint `GET /admin/items` to fetch all data.
 - [x] **Backend Sync:** Endpoint `POST /admin/sync` to process bulk changes.
 - [x] **Apps Script Sync:** `loadAdminSheet()` and `syncAdminSheet()` functions.
@@ -220,13 +220,19 @@ ceneni/
 
 ## 📅 10. Development Log
 
+### 2025-01-30: Admin & Bulk Sync
+- ✅ **Bulk Editing:** Implemented bidirectional sync between Google Sheets and Database.
+- ✅ **Admin Sheet:** New tab `ADMIN_DATABASE` for mass price/name updates.
+- ✅ **Smart Filtering:** Jump from any estimate row directly to its database entry in Admin sheet (using original names from notes).
+- ✅ **Bugfixes:** Fixed SQLAlchemy `Max` import error and improved delete logic (auto-row removal).
+
 ### 2025-01-29: Major Feature Day
 - ✅ Fixed AI extraction (Czech prompts, JSON fallback)
 - ✅ Migrated to cloud (Render + Supabase)
 - ✅ Implemented Material/Montáž split
 - ✅ Added transparency features (notes, highlighting)
 - ✅ Created feedback system (blacklist, custom prices)
-- ✅ Re-imported all data (379 items, 620 prices)
+- ✅ Re-imported all data (380 items, 622 prices)
 
 ### Previous Sessions
 - Initial backend setup with SQLite
