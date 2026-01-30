@@ -139,6 +139,26 @@ async def ingest_file(file: UploadFile = File(...)):
         os.remove(temp_path)
         
     return result
+    
+@app.get("/admin/items")
+def get_admin_items():
+    """Get all items with latest prices for the admin sync sheet."""
+    return manager.db.get_all_items_admin()
+
+class AdminSyncItem(BaseModel):
+    id: Optional[int]
+    name: str
+    price_material: float
+    price_labor: float
+    unit: str
+
+@app.post("/admin/sync")
+def sync_admin_data(items: List[AdminSyncItem]):
+    """Sync changes from the admin sheet to the database."""
+    # Convert Pydantic models to dicts
+    data = [it.dict() for it in items]
+    success = manager.db.sync_admin_items(data)
+    return {"status": "success", "synced_count": len(data)}
 
 if __name__ == "__main__":
     import uvicorn

@@ -275,6 +275,105 @@ class PriceDatabase:
                 "price_history": price_history
             }
 
+    def get_all_items_admin(self):
+        """Fetch all items with their latest prices for administrative editing."""
+        with self.engine.connect() as conn:
+            # We want the most recent price for each item
+            # Subquery to get latest price id per item
+            latest_price_sub = select(
+                self.prices.c.item_id,
+                func.max(self.prices.c.id).label('latest_id')
+            ).group_by(self.prices.c.item_id).subquery()
+
+            stmt = select(
+                self.items.c.id,
+                self.items.c.name,
+                self.prices.c.price_material,
+                self.prices.c.price_labor,
+                self.prices.c.unit,
+                self.sources.c.vendor,
+                self.sources.c.date_offer
+            ).select_from(
+                self.items
+                .outerjoin(latest_price_sub, self.items.c.id == latest_price_sub.c.item_id)
+                .outerjoin(self.prices, latest_price_sub.c.latest_id == self.prices.c.id)
+                .outerjoin(self.sources, self.prices.c.source_id == self.sources.c.id)
+            ).order_by(self.items.c.name)
+
+            rows = conn.execute(stmt).fetchall()
+            return [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "price_material": r.price_material or 0,
+                    "price_labor": r.price_labor or 0,
+                    "unit": r.unit or "ks",
+                    "source": r.vendor or "N/A",
+                    "date": str(r.date_offer) if r.date_offer else "N/A"
+                }
+                for r in rows
+            ]
+
+    def sync_admin_items(self, items_data):
+        """Bulk sync items and prices from admin sheet data."""
+        with self.engine.connect() as conn:
+            # Get user source
+            source_name = "user_input"
+            source_id = conn.execute(select(self.sources.c.id).where(self.sources.c.filename == source_name)).scalar()
+            if not source_id:
+                from datetime import date
+                result = conn.execute(self.sources.insert().values(
+                    filename=source_name,
+                    vendor="Uživatel (Změna)",
+                    date_offer=date.today()
+                ))
+                source_id = result.inserted_primary_key[0]
+
+            for it in items_data:
+                item_id = it.get('id')
+                name = it.get('name')
+                price_mat = float(it.get('price_material', 0))
+                price_lab = float(it.get('price_labor', 0))
+                unit = it.get('unit', 'ks')
+
+                if not name: continue
+
+                if item_id:
+                    # Update Item Name
+                    conn.execute(self.items.update().where(self.items.c.id == item_id).values(
+                        name=name, normalized_name=name.lower().strip()
+                    ))
+                    
+                    # Update/Add Price
+                    # To keep history, we always insert a new record IF prices changed
+                    # Or just update if it's from user_input source
+                    existing_latest = conn.execute(
+                        select(self.prices.c.price_material, self.prices.c.price_labor, self.prices.c.unit)
+                        .where(self.prices.c.item_id == item_id)
+                        .order_by(self.prices.c.id.desc())
+                        .limit(1)
+                    ).fetchone()
+
+                    if not existing_latest or (
+                        existing_latest.price_material != price_mat or 
+                        existing_latest.price_labor != price_lab or 
+                        existing_latest.unit != unit
+                    ):
+                        conn.execute(self.prices.insert().values(
+                            item_id=item_id,
+                            source_id=source_id,
+                            price_material=price_mat,
+                            price_labor=price_lab,
+                            unit=unit,
+                            quantity=1.0
+                        ))
+                else:
+                    # New Item? (Usually admin won't create items without ID, but for robustness)
+                    self.add_custom_item(name, price_mat, price_lab, unit)
+            
+            conn.commit()
+            return True
+
     # Legacy V1 search support
     def search(self, query, limit=20):
         # Similar logic to search_items but returns full details

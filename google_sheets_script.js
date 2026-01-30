@@ -9,6 +9,9 @@ function onOpen() {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('🤖 AI Asistent')
         .addItem('Otevřít panel', 'showSidebar')
+        .addSeparator()
+        .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
+        .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
         .addToUi();
 }
 
@@ -266,6 +269,104 @@ function getBackendStatus() {
         return JSON.parse(response.getContentText());
     } catch (e) {
         return { "status": "offline" };
+    }
+}
+
+/**
+ * Načte celou databázi do nového listu pro hromadnou editaci
+ */
+function loadAdminSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName("ADMIN_DATABASE");
+
+    if (!sheet) {
+        sheet = ss.insertSheet("ADMIN_DATABASE");
+    }
+
+    sheet.clear();
+    const headers = [["ID", "Název", "Cena Materiál", "Cena Montáž", "Jednotka", "Poslední Zdroj", "Poslední Datum"]];
+    sheet.getRange(1, 1, 1, headers[0].length).setValues(headers).setBackground("#e8f0fe").setFontWeight("bold");
+
+    const url = `${API_BASE_URL}/admin/items`;
+    const options = {
+        'method': 'get',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            const data = JSON.parse(response.getContentText());
+            if (data && data.length > 0) {
+                const rows = data.map(item => [
+                    item.id,
+                    item.name,
+                    item.price_material,
+                    item.price_labor,
+                    item.unit,
+                    item.source,
+                    item.date
+                ]);
+                sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
+                sheet.setFrozenRows(1);
+                SpreadsheetApp.getUi().alert(`Načteno ${data.length} položek.`);
+            }
+        }
+    } catch (e) {
+        SpreadsheetApp.getUi().alert("Chyba při načítání: " + e.message);
+    }
+}
+
+/**
+ * Odešle změny z listu ADMIN_DATABASE zpět do databáze
+ */
+function syncAdminSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("ADMIN_DATABASE");
+
+    if (!sheet) {
+        SpreadsheetApp.getUi().alert("List ADMIN_DATABASE nebyl nalezen. Nejdříve jej načtěte.");
+        return;
+    }
+
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.alert('Synchronizace', 'Opravdu chcete odeslat změny do databáze? Přepíše to aktuální názvy a přidá nové ceny k existujícím ID.', ui.ButtonSet.YES_NO);
+
+    if (response !== ui.Button.YES) return;
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data.shift(); // Remove headers
+
+    const itemsToSync = data.filter(row => row[1]).map(row => {
+        return {
+            id: row[0] ? parseInt(row[0]) : null,
+            name: String(row[1]),
+            price_material: parseFloat(row[2]) || 0,
+            price_labor: parseFloat(row[3]) || 0,
+            unit: String(row[4] || "ks")
+        };
+    });
+
+    const url = `${API_BASE_URL}/admin/sync`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify(itemsToSync),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const res = UrlFetchApp.fetch(url, options);
+        if (res.getResponseCode() === 200) {
+            ui.alert(`Synchronizace úspěšná! Synchronizováno ${itemsToSync.length} položek.`);
+        } else {
+            ui.alert("Chyba při synchronizaci: " + res.getContentText());
+        }
+    } catch (e) {
+        ui.alert("Chyba aplikace: " + e.message);
     }
 }
 
