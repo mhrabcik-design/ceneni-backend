@@ -15,6 +15,12 @@ import json
 import argparse
 from pathlib import Path
 from typing import Dict, Any, List
+import sys
+import io
+
+# Force UTF-8 for Windows terminal support
+if sys.platform == 'win32' and sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def get_project_root(path: str) -> Path:
     return Path(path).resolve()

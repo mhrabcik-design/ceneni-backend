@@ -25,6 +25,11 @@ import subprocess
 import argparse
 from pathlib import Path
 from typing import List, Tuple, Optional
+import io
+
+# Force UTF-8 for Windows terminal support
+if sys.platform == 'win32' and sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # ANSI colors for terminal output
 class Colors:
