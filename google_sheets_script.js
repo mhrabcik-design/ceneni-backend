@@ -10,6 +10,9 @@ function onOpen() {
     ui.createMenu('🤖 AI Asistent')
         .addItem('Otevřít panel', 'showSidebar')
         .addSeparator()
+        .addItem('🔍 Filtrovat DB podle výběru', 'filterAdminSheetBySelection')
+        .addItem('🚫 Zrušit filtr v DB', 'clearAdminFilter')
+        .addSeparator()
         .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
         .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
         .addToUi();
@@ -367,6 +370,70 @@ function syncAdminSheet() {
         }
     } catch (e) {
         ui.alert("Chyba aplikace: " + e.message);
+    }
+}
+
+/**
+ * Vyfiltruje ADMIN_DATABASE podle názvu položky.
+ * Prioritně bere "Originální název" z poznámky (pokud existuje), jinak obsah buňky.
+ */
+function filterAdminSheetBySelection() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const activeCell = ss.getActiveCell();
+    const note = activeCell.getNote();
+
+    let query = activeCell.getValue();
+    let filterColumn = 2; // Výchozí: sloupec "Název"
+
+    if (note) {
+        // 1. Zkusíme vytáhnout přesný název z poznámky (za ikonkou krabice)
+        const nameMatch = note.match(/📦 (.*)\n/);
+        // 2. Také zkusíme ID (pro jistotu, ale název je pro filtraci víc "relevantní")
+        const idMatch = note.match(/🔗 ID: (\d+)/);
+
+        if (nameMatch && nameMatch[1]) {
+            query = nameMatch[1];
+            filterColumn = 2; // Filtrujeme podle názvu
+        } else if (idMatch && idMatch[1]) {
+            query = idMatch[1];
+            filterColumn = 1; // Filtrujeme podle ID
+        }
+    }
+
+    if (!query || String(query).length < 2) {
+        SpreadsheetApp.getUi().alert("Vyberte buňku s názvem nebo oceněním. Položka musí mít poznámku nebo text delší než 2 znaky.");
+        return;
+    }
+
+    const adminSheet = ss.getSheetByName("ADMIN_DATABASE");
+    if (!adminSheet) {
+        SpreadsheetApp.getUi().alert("List ADMIN_DATABASE nebyl nalezen. Nejdříve jej načtěte.");
+        return;
+    }
+
+    // Reset filtru
+    let filter = adminSheet.getFilter();
+    if (filter) filter.remove();
+
+    filter = adminSheet.getDataRange().createFilter();
+
+    const criteria = SpreadsheetApp.newFilterCriteria()
+        .whenTextContains(query)
+        .build();
+
+    filter.setColumnFilterCriteria(filterColumn, criteria);
+
+    adminSheet.activate();
+}
+
+/**
+ * Zruší veškeré filtry v listu ADMIN_DATABASE
+ */
+function clearAdminFilter() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const adminSheet = ss.getSheetByName("ADMIN_DATABASE");
+    if (adminSheet && adminSheet.getFilter()) {
+        adminSheet.getFilter().remove();
     }
 }
 

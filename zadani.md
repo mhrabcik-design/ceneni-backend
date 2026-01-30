@@ -200,10 +200,11 @@ ceneni/
 ---
 
 ### Phase 5: Bulk Database Editing (Admin Sheet) - IN PROGRESS
-- [ ] **Backend Export:** Endpoint `GET /admin/items` to fetch all data.
-- [ ] **Backend Sync:** Endpoint `POST /admin/sync` to process bulk changes.
-- [ ] **Apps Script Sync:** `loadAdminSheet()` and `syncAdminSheet()` functions.
-- [ ] **Admin UI:** New sheet tab `ADMIN_DATABASE` with Load/Save actions.
+- [x] **Backend Export:** Endpoint `GET /admin/items` to fetch all data.
+- [x] **Backend Sync:** Endpoint `POST /admin/sync` to process bulk changes.
+- [x] **Apps Script Sync:** `loadAdminSheet()` and `syncAdminSheet()` functions.
+- [x] **Admin UI:** New sheet tab `ADMIN_DATABASE` with Load/Save actions.
+- [x] **Filtering:** `filterAdminSheetBySelection()` to jump from budget to DB edit.
 
 ---
 
