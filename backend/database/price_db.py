@@ -56,17 +56,16 @@ class PriceDatabase:
                 return {"items": 0, "prices": 0, "url": str(self.engine.url), "error": str(e)}
 
     def delete_item(self, item_id):
-        """Delete an item and all its prices (blacklist functionality)."""
+        return self.delete_items([item_id])
+
+    def delete_items(self, item_ids):
+        """Delete multiple items and their prices."""
+        if not item_ids: return False
         with self.engine.connect() as conn:
-            # Check if item exists
-            check = conn.execute(select(self.items.c.id).where(self.items.c.id == item_id)).scalar()
-            if not check:
-                return False
-            
-            # Delete prices first (foreign key)
-            conn.execute(self.prices.delete().where(self.prices.c.item_id == item_id))
-            # Delete item
-            conn.execute(self.items.delete().where(self.items.c.id == item_id))
+            # Delete prices first
+            conn.execute(self.prices.delete().where(self.prices.c.item_id.in_(item_ids)))
+            # Delete items
+            conn.execute(self.items.delete().where(self.items.c.id.in_(item_ids)))
             conn.commit()
             return True
 

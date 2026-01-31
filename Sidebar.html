@@ -131,6 +131,14 @@
         <div id="chart-container" style="margin-top: 15px; display: none;">
             <p id="chart-title" style="font-size: 13px; font-weight: 600; margin-bottom: 10px;"></p>
             <canvas id="priceChart"></canvas>
+
+            <div id="comparison-area" style="margin-top: 20px;">
+                <h2 style="font-size: 14px; color: #1a73e8; border-bottom: 1px solid #eee; padding-bottom: 5px;">📊
+                    Srovnání dodavatelů</h2>
+                <div id="comparison-table" style="font-size: 11px; max-height: 200px; overflow-y: auto;">
+                    <!-- Table will be injected here -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -292,11 +300,34 @@
 
             const ctx = document.getElementById('priceChart').getContext('2d');
 
-            // Prepare data: Sort by date
-            historyData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Build comparison table
+            const tableDiv = document.getElementById('comparison-table');
+            let tableHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            tableHtml += '<tr style="background: #f1f3f4; text-align: left;">' +
+                '<th style="padding: 5px;">Zdroj</th>' +
+                '<th style="padding: 5px;">Datum</th>' +
+                '<th style="padding: 5px;">Mat.</th>' +
+                '<th style="padding: 5px;">Mont.</th></tr>';
 
-            const labels = historyData.map(d => d.date);
-            const prices = historyData.map(d => d.price_material + d.price_labor);
+            // Sort by date desc for the table
+            const sortedTable = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedTable.forEach(row => {
+                tableHtml += `<tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 5px;">${row.vendor || 'N/A'}</td>
+                    <td style="padding: 5px;">${row.date || 'N/A'}</td>
+                    <td style="padding: 5px; font-weight: 600;">${row.price_material}</td>
+                    <td style="padding: 5px; color: #666;">${row.price_labor}</td>
+                </tr>`;
+            });
+            tableHtml += '</table>';
+            tableDiv.innerHTML = tableHtml;
+
+            // Prepare chart data: Sort by date asc
+            const sortedChart = [...historyData].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const labels = sortedChart.map(d => d.date);
+            const prices = sortedChart.map(d => d.price_material + d.price_labor);
 
             if (myChart) {
                 myChart.destroy();

@@ -9,12 +9,14 @@ function onOpen() {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('🤖 AI Asistent')
         .addItem('Otevřít panel', 'showSidebar')
+        .addItem('📤 Nahrát podklady', 'showUploadPanel')
         .addSeparator()
         .addItem('🔍 Filtrovat DB podle výběru', 'filterAdminSheetBySelection')
         .addItem('🚫 Zrušit filtr v DB', 'clearAdminFilter')
         .addSeparator()
         .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
         .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
+        .addItem('🗑️ Správa: SMAZAT VÝBĚR', 'deleteSelectedAdminItems')
         .addToUi();
 }
 
@@ -23,6 +25,14 @@ function showSidebar() {
         .setTitle('AI Cenový Asistent')
         .setWidth(300);
     SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function showUploadPanel() {
+    const html = HtmlService.createHtmlOutputFromFile('UploadPanel')
+        .setTitle('Nahrát podklady do databáze')
+        .setWidth(450)
+        .setHeight(600);
+    SpreadsheetApp.getUi().showModalDialog(html, '📦 Centrum nahrávání');
 }
 
 /**
@@ -395,6 +405,69 @@ function syncAdminSheet() {
             ui.alert(`Synchronizace úspěšná! Synchronizováno ${itemsToSync.length} položek.`);
         } else {
             ui.alert("Chyba při synchronizaci: " + res.getContentText());
+        }
+    } catch (e) {
+        ui.alert("Chyba aplikace: " + e.message);
+    }
+}
+
+/**
+ * Smaže všechny vybrané řádky v listu ADMIN_DATABASE z databáze
+ */
+function deleteSelectedAdminItems() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("ADMIN_DATABASE");
+    if (!sheet || ss.getActiveSheet().getName() !== "ADMIN_DATABASE") {
+        SpreadsheetApp.getUi().alert("Tato funkce funguje pouze v listu ADMIN_DATABASE.");
+        return;
+    }
+
+    const range = sheet.getActiveRange();
+    const values = range.getValues();
+    const startRow = range.getRow();
+    const itemIds = [];
+
+    // Posbírat ID z prvního sloupce vybrané oblasti
+    for (let i = 0; i < values.length; i++) {
+        const id = sheet.getRange(startRow + i, 1).getValue();
+        if (id && !isNaN(id)) {
+            itemIds.push(parseInt(id));
+        }
+    }
+
+    if (itemIds.length === 0) {
+        SpreadsheetApp.getUi().alert("Nebyly vybrány žádné položky s ID.");
+        return;
+    }
+
+    const ui = SpreadsheetApp.getUi();
+    const confirm = ui.alert('Potvrdit smazání', `Opravdu chcete TRVALE SMAZAT ${itemIds.length} položek z databáze?`, ui.ButtonSet.YES_NO);
+    if (confirm !== ui.Button.YES) return;
+
+    const url = `${API_BASE_URL}/admin/batch-delete`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify(itemIds),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const res = UrlFetchApp.fetch(url, options);
+        if (res.getResponseCode() === 200) {
+            // Smazat řádky z listu (zezadu, aby se nerozhodily indexy)
+            const rowsToDelete = [];
+            // Musíme znovu najít řádky, protože výběr mohl být nesouvislý
+            const allData = sheet.getDataRange().getValues();
+            for (let i = allData.length - 1; i >= 1; i--) {
+                if (itemIds.includes(parseInt(allData[i][0]))) {
+                    sheet.deleteRow(i + 1);
+                }
+            }
+            ui.alert(`Smazáno ${itemIds.length} položek.`);
+        } else {
+            ui.alert("Chyba při mazání: " + res.getContentText());
         }
     } catch (e) {
         ui.alert("Chyba aplikace: " + e.message);

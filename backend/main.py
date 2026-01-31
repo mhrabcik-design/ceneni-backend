@@ -152,6 +152,12 @@ class AdminSyncItem(BaseModel):
     price_labor: float
     unit: str
 
+@app.post("/admin/batch-delete")
+def batch_delete_items(item_ids: List[int]):
+    """Delete multiple items from the database."""
+    success = manager.db.delete_items(item_ids)
+    return {"status": "success", "deleted_count": len(item_ids)}
+
 @app.post("/admin/sync")
 def sync_admin_data(items: List[AdminSyncItem]):
     """Sync changes from the admin sheet to the database."""
