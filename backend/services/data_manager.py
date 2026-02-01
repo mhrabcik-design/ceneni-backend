@@ -19,6 +19,7 @@ class DataManager:
     def process_file(self, filepath: str, file_type_override: str = None):
         """
         Main entry point. Reads file, sends to AI, saves to DB.
+        For Excel files, processes sheet by sheet to ensure all data is captured.
         """
         if not self.ai:
             return {"error": "AI not ready"}
@@ -34,55 +35,85 @@ class DataManager:
                 if '02_Historie' in filepath or 'internal' in filepath.lower():
                     file_type = 'internal'
 
-            # 3. Read Content
-            content = self._read_file_content(filepath)
-            
-            # 4. Extract with AI
-            data = self.ai.extract_from_text(content, os.path.basename(filepath), file_type=file_type)
-            
-            if not data or not data.get('items'):
-                return {"status": "skipped", "reason": "No data found by AI"}
-
-            offer_number = data.get('offer_number')
-            
-            # 5. Final Duplicate Check (Hash + Offer Number)
-            existing = self.db.check_file_exists(file_hash=file_hash, offer_number=offer_number)
-            
             ext = os.path.splitext(filepath)[1].lower()
             is_excel = ext in ['.xlsx', '.xls']
 
+            # 3. Read & Process (Sheet-by-sheet for Excel)
+            all_items = []
+            final_data = {"vendor": "Unknown", "date": None, "offer_number": None}
+
+            if is_excel:
+                sheets = pd.read_excel(filepath, sheet_name=None)
+                sheet_stats = []
+                for sheet_name, df in sheets.items():
+                    if df.empty or len(df.columns) < 2: continue
+                    
+                    # Log sheet stats
+                    print(f"📄 Processing sheet '{sheet_name}' ({len(df)} rows) from {os.path.basename(filepath)}")
+                    
+                    # Use CSV format to avoid truncation of long columns in to_string()
+                    content = f"--- LIST: {sheet_name} ---\n{df.to_csv(index=False)}"
+                    
+                    # AI Extraction for this specific sheet
+                    data = self.ai.extract_from_text(content, f"{os.path.basename(filepath)} [{sheet_name}]", file_type=file_type)
+                    if data and data.get('items'):
+                        count = len(data['items'])
+                        all_items.extend(data['items'])
+                        sheet_stats.append(f"{sheet_name}: {count}")
+                        print(f"✅ Extracted {count} items from sheet '{sheet_name}'")
+                        
+                        # Keep metadata from the first valid sheet result
+                        if final_data["vendor"] == "Unknown":
+                            final_data["vendor"] = data.get('vendor', 'Unknown')
+                            final_data["date"] = data.get('date')
+                            final_data["offer_number"] = data.get('offer_number')
+                
+                if sheet_stats:
+                    print(f"📊 Summary for {os.path.basename(filepath)}: " + ", ".join(sheet_stats))
+            else:
+                # Standard single-shot process for PDF/TXT
+                content = self._read_file_content(filepath)
+                data = self.ai.extract_from_text(content, os.path.basename(filepath), file_type=file_type)
+                if data:
+                    all_items = data.get('items', [])
+                    final_data = data
+
+            if not all_items:
+                return {"status": "skipped", "reason": "No data found by AI in any sheet"}
+
+            offer_number = final_data.get('offer_number')
+            
+            # 4. Final Duplicate Check (Hash + Offer Number)
+            existing = self.db.check_file_exists(file_hash=file_hash, offer_number=offer_number)
+            
             if existing:
                 existing_ext = os.path.splitext(existing['filename'])[1].lower()
                 existing_is_excel = existing_ext in ['.xlsx', '.xls']
 
-                # Hierarchy Logic:
-                # 1. New is Excel, Existing is PDF -> UPDATE/OVERWRITE (Upgrade to better data)
                 if is_excel and not existing_is_excel:
                     print(f"Upgrading existing PDF offer {offer_number} with new Excel data.")
-                    # We continue to saving - add_processed_file will need to handle updates or we delete old one
                     self.db.delete_source(existing['id']) 
                 else:
-                    # 2. Any other case (Same format or New is PDF/Existing is Excel) -> SKIP
                     return {
                         "status": "duplicate", 
                         "reason": f"File already exists (Matched by {existing['type']}). Original: {existing['filename']} by {existing['vendor']}",
                         "details": existing
                     }
 
-            # 6. Validate & Normalize Date
-            offer_date = self._determine_date(data.get('date'), filepath)
+            # 5. Validate & Normalize Date
+            offer_date = self._determine_date(final_data.get('date'), filepath)
             
-            # 7. Save
+            # 6. Save
             source_id = self.db.add_processed_file(
                 filename=os.path.basename(filepath),
-                vendor=data.get('vendor', 'Unknown'),
+                vendor=final_data.get('vendor', 'Unknown'),
                 date_offer=offer_date,
-                items=data['items'],
+                items=all_items,
                 file_hash=file_hash,
                 offer_number=offer_number
             )
             
-            return {"status": "success", "type": file_type, "items_count": len(data['items']), "source_id": source_id}
+            return {"status": "success", "type": file_type, "items_count": len(all_items), "source_id": source_id}
             
         except Exception as e:
             return {"status": "error", "message": str(e)}

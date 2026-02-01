@@ -22,42 +22,46 @@ class AIExtractor:
         """
         
         if file_type == 'internal':
-            prompt = f"""Jsi Data Extractor pro interní stavební rozpočty (Excel).
+            prompt = f"""Jsi profesionální Data Extractor pro rozsáhlé stavební rozpočty.
 
-ÚKOL: Extrahuj položky s cenami 'Montáž A' (práce) a 'Dodávka A' (materiál).
+ÚKOL: Extrahuj ÚPLNĚ VŠECHNY jednotlivé položky s cenami 'Montáž A' (práce) a 'Dodávka A' (materiál).
+V dokumentu jsou stovky položek - tvým úkolem je nevynechat ani jednu!
 
 VÝSTUP - POUZE PLATNÝ JSON (nic jiného!):
 {{
-    "vendor": "Internal",
-    "date": null,
-    "items": [
-        {{"raw_name": "Popis položky", "price_material": 123.45, "price_labor": 67.89, "unit": "ks", "quantity": 1.0}}
-    ]
+"vendor": "Internal",
+"date": null,
+"items": [
+    {{"raw_name": "Popis položky", "price_material": 123.45, "price_labor": 67.89, "unit": "ks", "quantity": 1.0}}
+]
 }}
 
 PRAVIDLA:
 1. Každá položka MUSÍ mít raw_name (text popisu).
 2. price_material = cena materiálu BEZ DPH (Dodávka A).
 3. price_labor = cena práce BEZ DPH (Montáž A).
-4. Ignoruj řádky: Celkem, Součet, DPH, Mezisoučet, Total.
+4. Ignoruj řádky, které jsou jen součty kapitol nebo celkové součty (Celkem, Součet, DPH).
+5. EXTRAHUJ KAŽDÝ ŘÁDEK, KTERÝ MÁ JEDNOTKOVOU CENU.
 
 SOUBOR: {filename}
 OBSAH:
-{text_content[:25000]}
+{text_content[:200000]}
 
 ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM:"""
         else:
             prompt = f"""Jsi Data Extractor pro nabídky dodavatelů stavebního materiálu.
 
-ÚKOL: Extrahuj VŠECHNY položky s cenami z nabídky. Hledej tabulky s položkami.
+ÚKOL: Extrahuj ÚPLNĚ VŠECHNY položky s cenami z nabídky. Hledej tabulky s položkami.
+Nesmíš žádnou položku vynechat ani seskupovat!
 
 VÝSTUP - POUZE PLATNÝ JSON (nic jiného, žádný text před ani za!):
-    "vendor": "Název firmy",
-    "date": "YYYY-MM-DD",
-    "offer_number": "Číslo nabídky/zakázky",
-    "items": [
-        {{"raw_name": "Přesný popis položky z dokumentu", "price_material": 123.45, "price_labor": 0.0, "unit": "ks", "quantity": 1.0}}
-    ]
+{{
+"vendor": "Název firmy",
+"date": "YYYY-MM-DD",
+"offer_number": "Číslo nabídky/zakázky",
+"items": [
+    {{"raw_name": "Přesný popis položky z dokumentu", "price_material": 123.45, "price_labor": 0.0, "unit": "ks", "quantity": 1.0}}
+]
 }}
 
 PRAVIDLA:
@@ -73,7 +77,7 @@ PRAVIDLA:
 
 SOUBOR: {filename}
 OBSAH:
-{text_content[:25000]}
+{text_content[:200000]}
 
 ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM (začni {{ a skonči }}):"""
 
