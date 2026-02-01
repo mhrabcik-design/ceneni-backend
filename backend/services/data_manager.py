@@ -98,8 +98,13 @@ class DataManager:
         ext = os.path.splitext(filepath)[1].lower()
         try:
             if ext in ['.xlsx', '.xls']:
-                df = pd.read_excel(filepath)
-                return df.to_string()
+                # Read all sheets into a dictionary of DataFrames
+                sheets = pd.read_excel(filepath, sheet_name=None)
+                all_content = []
+                for sheet_name, df in sheets.items():
+                    if not df.empty:
+                        all_content.append(f"--- LIST: {sheet_name} ---\n{df.to_string()}")
+                return "\n\n".join(all_content)
             elif ext == '.pdf':
                 try:
                     import fitz  # PyMuPDF
