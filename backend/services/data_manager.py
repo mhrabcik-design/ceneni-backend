@@ -48,25 +48,30 @@ class DataManager:
                 for sheet_name, df in sheets.items():
                     if df.empty or len(df.columns) < 2: continue
                     
-                    # Log sheet stats
-                    print(f"📄 Processing sheet '{sheet_name}' ({len(df)} rows) from {os.path.basename(filepath)}")
+                    # Split sheet into chunks of 50 rows to prevent AI truncation/summarization
+                    chunk_size = 50
+                    chunks = [df[i:i + chunk_size] for i in range(0, len(df), chunk_size)]
+                    sheet_item_count = 0
                     
-                    # Use CSV format to avoid truncation of long columns in to_string()
-                    content = f"--- LIST: {sheet_name} ---\n{df.to_csv(index=False)}"
+                    print(f"📄 Processing sheet '{sheet_name}' ({len(df)} rows, {len(chunks)} chunks) from {os.path.basename(filepath)}")
                     
-                    # AI Extraction for this specific sheet
-                    data = self.ai.extract_from_text(content, f"{os.path.basename(filepath)} [{sheet_name}]", file_type=file_type)
-                    if data and data.get('items'):
-                        count = len(data['items'])
-                        all_items.extend(data['items'])
-                        sheet_stats.append(f"{sheet_name}: {count}")
-                        print(f"✅ Extracted {count} items from sheet '{sheet_name}'")
+                    for idx, chunk in enumerate(chunks):
+                        print(f"  - Chunk {idx+1}/{len(chunks)} for sheet '{sheet_name}'")
+                        content = f"--- LIST: {sheet_name} (Chunk {idx+1}/{len(chunks)}) ---\n{chunk.to_csv(index=False)}"
                         
-                        # Keep metadata from the first valid sheet result
-                        if final_data["vendor"] == "Unknown":
-                            final_data["vendor"] = data.get('vendor', 'Unknown')
-                            final_data["date"] = data.get('date')
-                            final_data["offer_number"] = data.get('offer_number')
+                        data = self.ai.extract_from_text(content, f"{os.path.basename(filepath)} [{sheet_name} ch{idx+1}]", file_type=file_type)
+                        if data and data.get('items'):
+                            all_items.extend(data['items'])
+                            sheet_item_count += len(data['items'])
+                            
+                            # Keep metadata from the first valid chunk result
+                            if final_data["vendor"] == "Unknown":
+                                if data.get('vendor'): final_data["vendor"] = data.get('vendor')
+                                if data.get('date'): final_data["date"] = data.get('date')
+                                if data.get('offer_number'): final_data["offer_number"] = data.get('offer_number')
+                    
+                    sheet_stats.append(f"{sheet_name}: {sheet_item_count}")
+                    print(f"✅ Extracted total {sheet_item_count} items from sheet '{sheet_name}'")
                 
                 if sheet_stats:
                     print(f"📊 Summary for {os.path.basename(filepath)}: " + ", ".join(sheet_stats))
