@@ -108,6 +108,14 @@ class DataManager:
             # 5. Validate & Normalize Date
             offer_date = self._determine_date(final_data.get('date'), filepath)
             
+            # Map file_type to source_type
+            source_type = 'INTERNAL' if file_type == 'internal' else 'SUPPLIER'
+
+            # Strict Logic: If internal, wipe material prices to prevent chaos
+            if source_type == 'INTERNAL':
+                for it in all_items:
+                    it['price_material'] = 0.0
+
             # 6. Save
             source_id = self.db.add_processed_file(
                 filename=os.path.basename(filepath),
@@ -115,7 +123,8 @@ class DataManager:
                 date_offer=offer_date,
                 items=all_items,
                 file_hash=file_hash,
-                offer_number=offer_number
+                offer_number=offer_number,
+                source_type=source_type
             )
             
             return {"status": "success", "type": file_type, "items_count": len(all_items), "source_id": source_id}

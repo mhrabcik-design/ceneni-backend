@@ -40,9 +40,14 @@ def match_items(req: MatchRequest):
     results = {}
     price_field = 'price_labor' if req.type == 'labor' else 'price_material'
     
+    # "Iron Curtain" Logic:
+    # Materials are only sourced from Suppliers (PDF) or Admin (Manually added)
+    # Labor is only sourced from Internal (Excel Budgets) or Admin (Manually added)
+    source_filter = ['INTERNAL', 'ADMIN'] if req.type == 'labor' else ['SUPPLIER', 'ADMIN']
+
     for item in req.items:
-        # Use fuzzy search from DB
-        matches = manager.db.search(item, limit=1)
+        # Use fuzzy search from DB with source filtering
+        matches = manager.db.search(item, limit=1, source_type_filter=source_filter)
         if matches:
             best = matches[0]
             results[item] = {

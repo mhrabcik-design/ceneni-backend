@@ -25,6 +25,7 @@ class PriceDatabase:
             Column('date_offer', Date),
             Column('offer_number', String),
             Column('file_hash', String, unique=True),
+            Column('source_type', String, server_default='SUPPLIER'), # 'SUPPLIER', 'INTERNAL', 'ADMIN'
             Column('created_at', DateTime, server_default=func.now())
         )
         
@@ -107,7 +108,8 @@ class PriceDatabase:
                 result = conn.execute(self.sources.insert().values(
                     filename=source_name,
                     vendor="Uživatel",
-                    date_offer=date.today()
+                    date_offer=date.today(),
+                    source_type='ADMIN'
                 ))
                 source_id = result.inserted_primary_key[0]
             
@@ -137,7 +139,7 @@ class PriceDatabase:
                 if row: return {"type": "offer", "filename": row.filename, "vendor": row.vendor, "id": row.id}
         return None
 
-    def add_processed_file(self, filename, vendor, date_offer, items, file_hash=None, offer_number=None):
+    def add_processed_file(self, filename, vendor, date_offer, items, file_hash=None, offer_number=None, source_type='SUPPLIER'):
         with self.engine.connect() as conn:
             # 1. Add/Get Source
             # Check existence by hash/offer if provided, else filename
@@ -156,7 +158,8 @@ class PriceDatabase:
                     vendor=vendor, 
                     date_offer=date_offer,
                     file_hash=file_hash,
-                    offer_number=offer_number
+                    offer_number=offer_number,
+                    source_type=source_type
                 )
                 result = conn.execute(stmt)
                 source_id = result.inserted_primary_key[0]
@@ -165,7 +168,8 @@ class PriceDatabase:
                 stmt = self.sources.update().where(self.sources.c.id == source_id).values(
                     vendor=vendor, 
                     date_offer=date_offer,
-                    offer_number=offer_number
+                    offer_number=offer_number,
+                    source_type=source_type
                 )
                 conn.execute(stmt)
                 
@@ -240,7 +244,8 @@ class PriceDatabase:
                 self.sources.c.date_offer, 
                 self.sources.c.vendor, 
                 self.prices.c.price_material, 
-                self.prices.c.price_labor
+                self.prices.c.price_labor,
+                self.sources.c.source_type
             ).select_from(
                 self.prices.join(self.sources, self.prices.c.source_id == self.sources.c.id)
             ).where(
@@ -255,7 +260,8 @@ class PriceDatabase:
                     "date": r.date_offer, 
                     "vendor": r.vendor, 
                     "price_material": r.price_material, 
-                    "price_labor": r.price_labor
+                    "price_labor": r.price_labor,
+                    "source_type": r.source_type
                 } 
                 for r in rows
             ]
@@ -446,7 +452,7 @@ class PriceDatabase:
             return True
 
     # Legacy V1 search support
-    def search(self, query, limit=20):
+    def search(self, query, limit=20, source_type_filter=None):
         # Similar logic to search_items but returns full details
         q_norm = query.lower().strip()
         tokens = [t for t in q_norm.split() if len(t) > 2]
@@ -464,6 +470,9 @@ class PriceDatabase:
                 self.sources.c.vendor.label('source'),
                 self.sources.c.date_offer.label('date')
             ).select_from(j).order_by(self.sources.c.date_offer.desc())
+            
+            if source_type_filter:
+                base_query = base_query.where(self.sources.c.source_type.in_(source_type_filter))
             
             if not tokens:
                 stmt = base_query.where(self.items.c.normalized_name.ilike(f'%{q_norm}%')).limit(limit)

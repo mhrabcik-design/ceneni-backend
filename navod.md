@@ -45,6 +45,14 @@ Panel otevřete přes menu: **🤖 AI Asistent -> Otevřít panel**.
 *   Klikněte na **🔍 Zobrazit graf**. V panelu se vykreslí vývoj ceny této položky v čase.
 *   Tlačítko **📋 Načíst z buňky** přenese text z vybrané buňky přímo do vyhledávacího pole v panelu.
 
+### 📤 2.5 Nahrávání podkladů (Integrita Dat)
+Pro udržení čistoty dat systém striktně rozděluje zdroje:
+
+1.  **📦 Nabídky (Materiál)** - nahrávejte sem PDF/XLS od dodavatelů (DEK, Argos...). Systém z nich čerpá **pouze ceny materiálu**.
+2.  **🔨 Rozpočty (Práce)** - nahrávejte sem vaše interní XLS rozpočty. Systém z nich čerpá **pouze ceny montáže**.
+
+*Tip: Stačí zvolit správné tlačítko v nahrávacím panelu. Pokud nahrajete rozpočet jako "Práci", systém automaticky ignoruje ceny materiálu, které v něm jsou, aby vám nezkreslily historii tržních cen.*
+
 ---
 
 ## ⚙️ 3. Správa databáze (Admin Sheet)

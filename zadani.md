@@ -88,10 +88,16 @@ We treat data sources differently based on their origin:
 - [x] **Clasp Workflow:** Automated syncing of Apps Script files via command line.
 - [x] **Project Re-structure:** Organized `gas/` and `scripts/` directories.
 
+### Phase 8: The Iron Curtain (Data Integrity) (✅ COMPLETE)
+- [x] **Database Schema:** Added `source_type` to `sources` table (`SUPPLIER`, `INTERNAL`, `ADMIN`).
+- [x] **Split Search Logic:** Material lookup ignores internal budgets; Labor lookup ignores supplier offers.
+- [x] **Forced Cleansing:** During internal budget ingestion, material prices are automatically zeroed/ignored.
+- [x] **UI Clarity:** Updated Upload Panel with clear material vs. labor labels.
+
 ---
 
 ## 📊 4. Datové zdroje
-Data jsou nyní nahrávána přímo uživatelem přes **Centrum nahrávání** v Google Sheets. Systém automaticky rozlišuje mezi PDF nabídkami a Excel rozpočty a ukládá je do cloudové databáze (Supabase).
+Data jsou nyní nahrávána přímo uživatelem přes **Centrum nahrávání** v Google Sheets. Systém automaticky rozlišuje mezi PDF nabídkami (`SUPPLIER`) a Excel rozpočty (`INTERNAL`) a ukládá je do cloudové databáze (Supabase).
 
 ---
 

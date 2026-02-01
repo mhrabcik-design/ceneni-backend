@@ -33,14 +33,17 @@ Tento dokument slouží jako pracovní prostor pro debatu o dalším směřován
 
 ---
 
+4. **Fáze 8: Železná opona (Integrita Dat) - ✅ AKTUÁLNÍ**
+   - **Koncept:** Striktní oddělení zdrojů cen. Materiál se bere pouze z dodavatelských nabídek (PDF), Práce se bere pouze z vnitřních rozpočtů (XLS).
+   - **Důvod:** Zabránění chaosu, kdy orientační ceny materiálu v rozpočtech prznily historii reálných nákupních cen.
+
+---
+
 ## 📅 3. Navržený postup (Roadmapa)
 
-1. **Fáze 7: Labor Suggestion Engine**
-   - Implementace algoritmu pro párování materiálu a odpovídající montáže.
-   - UI v Sidebaru pro rychlé přidání práce.
-
-2. **Fáze 8: Batch Update Tool**
-   - Vývoj funkce pro hromadnou synchronizaci tabulky s databází.
+1. **Fáze 7: Labor Suggestion Engine** - ✅ Hotovo
+2. **Fáze 8: Železná opona (Data Integrity)** - 🚀 V realizaci
+3. **Fáze 9: Batch Update Tool** - Plánováno
 
 ---
 

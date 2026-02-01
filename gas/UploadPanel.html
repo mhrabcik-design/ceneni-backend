@@ -209,6 +209,16 @@
             color: var(--warning-orange);
         }
 
+        .item-badge {
+            background: #e8f0fe;
+            color: var(--google-blue);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: none;
+        }
+
         /* Confetti */
         .confetti {
             position: fixed;
@@ -236,13 +246,17 @@
             <div class="subtitle">Cloudový import dokumentů do databáze</div>
         </header>
 
-        <div class="type-selector">
+        <div class="type-selector" style="margin-bottom: 8px;">
             <button class="type-btn active" id="type-supplier" onclick="setType('supplier')">
-                📦 Nabídky (PDF)
+                📦 Nabídky (Materiál)
             </button>
             <button class="type-btn" id="type-internal" onclick="setType('internal')">
-                🔨 Rozpočty (XLS)
+                🔨 Rozpočty (Práce)
             </button>
+        </div>
+        <div
+            style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-bottom: 12px; font-style: italic;">
+            Materiál se čerpá pouze z PDF nabídek. Práce se čerpá z XLS rozpočtů.
         </div>
 
         <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
@@ -296,7 +310,13 @@
             div.id = fileObj.id;
             div.onclick = () => retryFile(fileObj.id);
             div.innerHTML = `
-        <div class="file-info"><span class="file-name">${fileObj.name}</span><span class="file-status" id="status-${fileObj.id}">Připraveno</span></div>
+        <div class="file-info">
+            <span class="file-name">${fileObj.name}</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="item-badge" id="badge-${fileObj.id}"></span>
+                <span class="file-status" id="status-${fileObj.id}">Připraveno</span>
+            </div>
+        </div>
         <div class="progress-container"><div class="progress-bar" id="bar-${fileObj.id}"></div></div>
       `;
             fileList.appendChild(div);
@@ -305,7 +325,7 @@
 
         async function startBatchUpload() {
             uploadBtn.disabled = true;
-            const pending = selectedFiles.filter(f => f.status === 'pending');
+            const pending = selectedFiles.filter(f => f.status === 'pending' || f.status === 'error');
             for (const f of pending) await uploadSingleFile(f);
             uploadBtn.disabled = false;
             if (selectedFiles.every(f => f.status === 'success' || f.status === 'duplicate')) createConfetti();
@@ -315,11 +335,13 @@
             const container = document.getElementById(f.id);
             const statusEl = document.getElementById(`status-${f.id}`);
             const barEl = document.getElementById(`bar-${f.id}`);
+            const badgeEl = document.getElementById(`badge-${f.id}`);
 
             f.status = 'uploading';
             container.classList.remove('error');
             statusEl.innerText = "Zpracovávám...";
             statusEl.className = 'file-status';
+            badgeEl.style.display = 'none';
             barEl.style.width = "40%";
             barEl.style.background = 'var(--google-blue)';
 
@@ -328,12 +350,29 @@
             formData.append('file_type', currentType);
 
             try {
-                const res = await fetch(`${API_BASE_URL}/ingest/upload`, { method: 'POST', body: formData, headers: { 'bypass-tunnel-reminder': 'true' } });
+                const res = await fetch(`${API_BASE_URL}/ingest/upload?t=${Date.now()}`, { method: 'POST', body: formData, headers: { 'bypass-tunnel-reminder': 'true' } });
                 const result = await res.json();
+
                 if (result.status === 'success') {
-                    f.status = 'success'; statusEl.innerText = "Hotovo"; statusEl.className = 'file-status status-success'; barEl.style.width = "100%"; barEl.style.background = 'var(--success-green)';
+                    f.status = 'success';
+                    statusEl.innerText = "Hotovo";
+                    statusEl.className = 'file-status status-success';
+                    barEl.style.width = "100%";
+                    barEl.style.background = 'var(--success-green)';
+                    if (result.items_count) {
+                        badgeEl.innerText = `${result.items_count} položek`;
+                        badgeEl.style.display = 'inline-block';
+                    }
                 } else if (result.status === 'duplicate') {
-                    f.status = 'duplicate'; statusEl.innerText = "Duplikát"; statusEl.className = 'file-status status-duplicate'; barEl.style.width = "100%"; barEl.style.background = 'var(--warning-orange)';
+                    f.status = 'duplicate';
+                    statusEl.innerText = "Duplikát";
+                    statusEl.className = 'file-status status-duplicate';
+                    barEl.style.width = "100%";
+                    barEl.style.background = 'var(--warning-orange)';
+                    if (result.details && result.details.id) {
+                        badgeEl.innerText = `Už v DB`;
+                        badgeEl.style.display = 'inline-block';
+                    }
                 } else {
                     f.status = 'error'; statusEl.innerText = result.message || "Chyba"; statusEl.className = 'file-status status-error'; barEl.style.width = "100%"; barEl.style.background = 'var(--error-red)';
                     container.classList.add('error');
