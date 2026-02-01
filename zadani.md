@@ -82,6 +82,12 @@ We treat data sources differently based on their origin:
 - [x] **Custom Prices:** Add user-defined items and prices to database.
 - [x] **Cleanup Script:** Conservative removal of summary rows only.
 
+### Phase 7: Labor & Maintenance (✅ COMPLETE)
+- [x] **Labor Suggestion Engine:** Context-aware labor matching in a modal dialog.
+- [x] **Database Reset Tool:** "Nuclear" button with double confirmation.
+- [x] **Clasp Workflow:** Automated syncing of Apps Script files via command line.
+- [x] **Project Re-structure:** Organized `gas/` and `scripts/` directories.
+
 ---
 
 ## 📊 4. Datové zdroje
@@ -163,23 +169,16 @@ After pricing, each cell contains a note:
 
 ```
 ceneni/
-├── backend/
-│   ├── main.py              # FastAPI application
-│   ├── database/
-│   │   └── price_db.py      # SQLAlchemy database layer
-│   └── services/
-│       ├── ai_extractor.py  # Gemini AI extraction
-│       └── data_manager.py  # Import orchestration
-├── Input/
-│   ├── 01_Nabidky_PDF/      # Supplier quotes (Material)
-│   └── 02_Historie_Excel/   # Internal budgets (Labor)
-├── google_sheets_script.js  # Apps Script code
-├── Sidebar.html             # Sidebar UI
-├── run_batch_import.py      # Batch import script
-├── cleanup_database.py      # DB cleanup script
-├── clear_database.py        # Full DB reset
-├── Procfile                 # Render deployment
-└── requirements.txt         # Python dependencies
+├── backend/             # Python Backend (FastAPI, SQLAlchemy)
+├── gas/                 # Google Apps Script (Frontend & Bridge)
+│   ├── Cenar.js         # Main script (formerly google_sheets_script.js)
+│   ├── Sidebar.html     # Pricing & Analysis Sidebar
+│   ├── UploadPanel.html # Cloud Ingestion Center
+│   └── LaborSuggestions.html # Phase 7: Labor Popup
+├── scripts/             # Utility scripts (Cleanup, Migration)
+├── .clasp.json          # Clasp configuration for local dev
+├── Procfile             # Render deployment
+└── brainstorm.md        # Feature roadmap & debate
 ```
 
 ---
@@ -239,23 +238,22 @@ ceneni/
 ---
 
 ## 📅 10. Development Log
-
-### 2025-01-30: Admin & Bulk Sync
-- ✅ **Bulk Editing:** Implemented bidirectional sync between Google Sheets and Database.
-- ✅ **Admin Sheet:** New tab `ADMIN_DATABASE` for mass price/name updates.
-- ✅ **Smart Filtering:** Jump from any estimate row directly to its database entry in Admin sheet (using original names from notes).
-- ✅ **Bugfixes:** Fixed SQLAlchemy `Max` import error and improved delete logic (auto-row removal).
-
-### 2025-01-29: Major Feature Day
-- ✅ Fixed AI extraction (Czech prompts, JSON fallback)
-- ✅ Migrated to cloud (Render + Supabase)
-- ✅ Implemented Material/Montáž split
-- ✅ Added transparency features (notes, highlighting)
-- ✅ Created feedback system (blacklist, custom prices)
-- ✅ Re-imported all data (380 items, 622 prices)
+### 2025-02-01: Automation & AI Refinement
+- ✅ **Clasp Integration:** Replaced manual copy-pasting of Apps Script with `clasp push`.
+- ✅ **Phase 7 Complete:** Implemented Labor Suggestion Engine (Materiál -> Montáž).
+- ✅ **Dev Logistics:** Cleaned up project structure, moved GAS files to `gas/` folder.
+- ✅ **Database Admin:** Added a safe "Nuclear" reset button for developers.
 
 ### Previous Sessions
 - Initial backend setup with SQLite
 - Basic AI extraction with Gemini
 - Google Sheets sidebar integration
 - Price history chart with Chart.js
+
+---
+
+## 🤖 Antigravity Note: Modern Workflow
+Původní proces manuálního kopírování kódu do Google Sheets byl nahrazen profesionálním workflow pomocí **Google Clasp**.
+- **Předtím:** Antigravity vygeneroval kód -> uživatel ho musel ručně zkopírovat do prohlížeče (riziko chyb).
+- **Nyní:** Antigravity upraví soubory v `gas/` -> uživatel napíše `clasp push` -> vše se nahraje automaticky.
+- **Výsledek:** Rychlejší iterace, čistší kód a méně manuální práce.

@@ -47,12 +47,27 @@ class DataManager:
             
             # 5. Final Duplicate Check (Hash + Offer Number)
             existing = self.db.check_file_exists(file_hash=file_hash, offer_number=offer_number)
+            
+            ext = os.path.splitext(filepath)[1].lower()
+            is_excel = ext in ['.xlsx', '.xls']
+
             if existing:
-                return {
-                    "status": "duplicate", 
-                    "reason": f"File already exists (Matched by {existing['type']}). Original: {existing['filename']} by {existing['vendor']}",
-                    "details": existing
-                }
+                existing_ext = os.path.splitext(existing['filename'])[1].lower()
+                existing_is_excel = existing_ext in ['.xlsx', '.xls']
+
+                # Hierarchy Logic:
+                # 1. New is Excel, Existing is PDF -> UPDATE/OVERWRITE (Upgrade to better data)
+                if is_excel and not existing_is_excel:
+                    print(f"Upgrading existing PDF offer {offer_number} with new Excel data.")
+                    # We continue to saving - add_processed_file will need to handle updates or we delete old one
+                    self.db.delete_source(existing['id']) 
+                else:
+                    # 2. Any other case (Same format or New is PDF/Existing is Excel) -> SKIP
+                    return {
+                        "status": "duplicate", 
+                        "reason": f"File already exists (Matched by {existing['type']}). Original: {existing['filename']} by {existing['vendor']}",
+                        "details": existing
+                    }
 
             # 6. Validate & Normalize Date
             offer_date = self._determine_date(data.get('date'), filepath)

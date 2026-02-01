@@ -75,6 +75,16 @@ class PriceDatabase:
             conn.commit()
             return True
 
+    def delete_source(self, source_id):
+        """Delete a source and all prices linked to it."""
+        with self.engine.connect() as conn:
+            # Delete prices first (Foreign Key)
+            conn.execute(self.prices.delete().where(self.prices.c.source_id == source_id))
+            # Delete source
+            conn.execute(self.sources.delete().where(self.sources.c.id == source_id))
+            conn.commit()
+            return True
+
     def add_custom_item(self, name, price_material, price_labor, unit):
         """Add a user-defined item with custom price."""
         with self.engine.connect() as conn:
@@ -119,12 +129,12 @@ class PriceDatabase:
             if file_hash:
                 s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.file_hash == file_hash)
                 row = conn.execute(s).fetchone()
-                if row: return {"type": "hash", "filename": row.filename, "vendor": row.vendor}
+                if row: return {"type": "hash", "filename": row.filename, "vendor": row.vendor, "id": row.id}
             
             if offer_number:
                 s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.offer_number == offer_number)
                 row = conn.execute(s).fetchone()
-                if row: return {"type": "offer", "filename": row.filename, "vendor": row.vendor}
+                if row: return {"type": "offer", "filename": row.filename, "vendor": row.vendor, "id": row.id}
         return None
 
     def add_processed_file(self, filename, vendor, date_offer, items, file_hash=None, offer_number=None):

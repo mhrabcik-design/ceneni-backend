@@ -6,13 +6,18 @@ Tento systém propojuje Google Sheets s umělou inteligencí (Gemini) a cloudovo
 
 ## 🛠️ 1. První nastavení (Instalace)
 
-Pokud instalujete systém do nové tabulky nebo aktualizujete kód, postupujte takto:
+Pokud instalujete systém do nové tabulky nebo aktualizujete kód, máte dvě možnosti:
 
-1.  V Google Sheets otevřete **Rozšíření -> Apps Script**.
-2.  **Soubor Code.gs:** Vložte obsah souboru `gas/google_sheets_script.js`.
-3.  **Nový soubor HTML:** Klikněte na `+` -> `HTML`, pojmenujte ho `Sidebar` (vložte `gas/Sidebar.html`) a případně `UploadPanel` (vložte `gas/UploadPanel.html`).
-4.  Uložte (Ctrl+S) a obnovte kartu s tabulkou (F5).
-5.  V horním menu se objeví **🤖 AI Asistent**.
+**Možnost A: Profesionální (Doporučeno)**
+1. V terminálu ve složce projektu napište: `clasp push`.
+2. Všechny soubory se automaticky nahrají do vašeho Apps Scriptu.
+
+**Možnost B: Manuální**
+1. V Google Sheets otevřete **Rozšíření -> Apps Script**.
+2. **Soubor Code.gs:** Vložte obsah souboru `gas/Cenar.js`.
+3. **HTML soubory:** Vytvořte nové soubory `Sidebar`, `UploadPanel` a `LaborSuggestions` a vložte do nich obsah odpovídajících `.html` souborů ze složky `gas/`.
+
+Po nahrání uložte (Ctrl+S) a obnovte kartu s tabulkou (F5). V horním menu se objeví **🤖 AI Asistent**.
 
 ---
 
@@ -28,6 +33,12 @@ Panel otevřete přes menu: **🤖 AI Asistent -> Otevřít panel**.
     *   Do buněk se doplní nejlepší nalezená cena.
     *   **Oranžové pozadí:** Shoda je nižší než 60 % (zkontrolujte položku).
     *   **Poznámka u buňky:** Obsahuje název z DB, % shody, zdroj a datum ceny.
+
+### 💡 Chytré návrhy montáže (Labor Suggestion)
+1. Označte buňku s materiálem, který jste právě ocenili (nebo má vyplněnou poznámku).
+2. V panelu klikněte na **💡 Najít montáž k položce**.
+3. Otevře se okno, kde AI navrhne nejvhodnější montážní práce z vašeho interního katalogu.
+4. Klikněte na **PŘIDAT** a systém automaticky vloží nový řádek s montáží přímo pod váš materiál.
 
 ### Historie a grafy
 *   Klikněte na jakoukoliv oceněnou buňku.
@@ -56,6 +67,11 @@ Pro hromadné úpravy cen a názvů slouží dedikovaný list.
 *   Pokud je v databázi nesmyslná položka, označte ji (v rozpočtu nebo v Admin listu).
 *   V panelu klikněte na **🗑️ Smazat položku z DB**. Položka se už nikdy nebude nabízet.
 
+### 🧨 Úplný reset (Nukleární tlačítko)
+*   Pokud chcete začít úplně od nuly, běžte do menu: **🤖 AI Asistent -> 🧨 RESET CELÉ DATABÁZE**.
+*   Systém vyžaduje dvě potvrzení (druhé potvrzení vyžaduje vepsání slova `SMAZAT`).
+*   **Varování:** Tato akce trvale vymaže veškerá data v databázi (názvy, ceny, historii).
+
 ---
 
 ## 🚀 4. Aktualizace systému
@@ -71,4 +87,4 @@ Systém běží na cloudu Render.com. Pokud dojde k úpravě backendu (Python k�
 
 *   **Skript se zasekl:** Obnovte stránku tabulky (F5).
 *   **Vrací to 0.00 Kč:** Položka nebyla v databázi nalezena s dostatečnou shodou. Zkuste ji přidat ručně přes tlačítko **➕ Přidat do DB**.
-*   **Chyba oprávnění:** Google se může zeptat na schválení skriptu (při prvním spuštění). Klikněte na "Advanced" a "Go to... (unsafe)".
+*   **Chyba oprávnění:** Google se může zeptat na schválení skriptu (při prvním spuštění). Klikněte na "Advanced" and "Go to... (unsafe)".
