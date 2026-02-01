@@ -56,6 +56,21 @@ def match_items(req: MatchRequest):
             }
     return results
 
+class SuggestionRequest(BaseModel):
+    material_name: str
+
+@app.post("/match/labor-suggestions")
+def suggest_labor(req: SuggestionRequest):
+    """Suggest best labor items from DB based on material name."""
+    # 1. Fetch all labor items from DB
+    labor_catalog = manager.db.get_labor_items()
+    if not labor_catalog:
+        return []
+    
+    # 2. Use AI to find best matches within the internal catalog
+    suggestions = manager.ai.suggest_labor(req.material_name, labor_catalog)
+    return suggestions
+
 class HistoryPoint(BaseModel):
     date: str
     vendor: str
@@ -165,6 +180,12 @@ def sync_admin_data(items: List[AdminSyncItem]):
     data = [it.dict() for it in items]
     success = manager.db.sync_admin_items(data)
     return {"status": "success", "synced_count": len(data)}
+
+@app.post("/admin/reset-database")
+def reset_database():
+    """Emergency: Wipes all data from the database."""
+    success = manager.db.reset_all_data()
+    return {"status": "success", "message": "Database has been completely reset."}
 
 if __name__ == "__main__":
     import uvicorn

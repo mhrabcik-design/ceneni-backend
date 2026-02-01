@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 def migrate():
     db_url = os.getenv("DATABASE_URL")

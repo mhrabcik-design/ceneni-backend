@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap">
+    <style>
+        :root {
+            --google-blue: #1a73e8;
+            --border-color: #dadce0;
+            --text-main: #3c4043;
+            --text-secondary: #70757a;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+            background-color: var(--bg-color);
+        }
+
+        .header {
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--google-blue);
+        }
+
+        .material-context {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .suggestion-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .suggestion-card:hover {
+            border-color: var(--google-blue);
+            box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3);
+        }
+
+        .suggestion-info {
+            flex: 1;
+        }
+
+        .suggestion-name {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .suggestion-price {
+            font-size: 13px;
+            color: var(--google-blue);
+            font-weight: 600;
+        }
+
+        .btn-add {
+            background: white;
+            border: 1px solid var(--google-blue);
+            color: var(--google-blue);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-add:hover {
+            background: var(--google-blue);
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+        }
+
+        .btn-close {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>💡 Návrh montážních prací</h1>
+        <div id="target-material" class="material-context">Načítám kontext...</div>
+    </div>
+
+    <div id="content">
+        <div class="loading">🧠 AI analyzuje váš katalog prací...</div>
+    </div>
+
+    <div class="footer">
+        <button class="btn-close" onclick="google.script.host.close()">Zavřít</button>
+    </div>
+
+    <script>
+        // Initialize suggestions
+        window.onload = function () {
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    document.getElementById('target-material').innerText = "Pro materiál: " + data.material;
+                    loadSuggestions(data.material);
+                })
+                .getSuggestionContext();
+        };
+
+        function loadSuggestions(materialName) {
+            google.script.run
+                .withSuccessHandler(renderSuggestions)
+                .withFailureHandler(function (err) {
+                    document.getElementById('content').innerHTML = '<div class="empty">Chyba při spojení se serverem.</div>';
+                })
+                .getLaborSuggestionsFromAPI(materialName);
+        }
+
+        function renderSuggestions(items) {
+            const container = document.getElementById('content');
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div class="empty">Pro tento materiál nebyly v databázi nalezeny žádné specifické montážní práce.</div>';
+                return;
+            }
+
+            let html = '<div class="suggestions-list">';
+            items.forEach(item => {
+                html += `
+          <div class="suggestion-card" onclick="addItem('${item.id}', '${item.name}', ${item.price_labor})">
+            <div class="suggestion-info">
+              <div class="suggestion-name">${item.name}</div>
+              <div class="suggestion-price">${item.price_labor.toLocaleString('cs-CZ')} Kč / ${item.unit}</div>
+            </div>
+            <button class="btn-add">PŘIDAT</button>
+          </div>
+        `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function addItem(id, name, price) {
+            const btn = event.currentTarget.querySelector('.btn-add') || event.target;
+            btn.innerText = "⏳";
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    btn.innerText = "PŘIDÁNO ✅";
+                    // Možná zavřít po chvilce?
+                    setTimeout(() => google.script.host.close(), 800);
+                })
+                .insertLaborRow(name, price, id);
+        }
+    </script>
+</body>
+
+</html>

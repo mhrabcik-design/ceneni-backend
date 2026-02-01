@@ -15,15 +15,15 @@
 ### B. The Solution: AI-First Architecture & Split Data Strategy
 We treat data sources differently based on their origin:
 
-1.  **Supplier Quotes (`Input/01_Nabidky_PDF`)**
-    - **Target:** **Material Prices** (Dodávka).
-    - **Method:** AI extracts Item Description + Unit Price.
-    - **Logic:** Represents current market rates.
+1.  **Nabídky dodavatelů (PDF)**
+    - **Cíl:** **Ceny materiálů** (Dodávka).
+    - **Metoda:** AI extrahuje popis položky + jednotkovou cenu.
+    - **Logika:** Reprezentuje aktuální tržní sazby.
 
-2.  **Internal Budgets (`Input/02_Historie_Excel`)**
-    - **Target:** **Labor Prices** (Montáž "A").
-    - **Method:** AI/Pandas looks specifically for the "Montáž A" column (Cost Price).
-    - **Logic:** Represents our internal cost standards for installation.
+2.  **Historické rozpočty (Excel)**
+    - **Cíl:** **Ceny montáže** (Montáž "A").
+    - **Metoda:** AI/Pandas hledá konkrétně sloupec "Montáž A" (nákladová cena).
+    - **Logika:** Reprezentuje naše vnitřní standardy pro instalaci.
 
 3.  **Visualization & Merging**
     - The database stores `PriceEntry` with `price_material` and `price_labor`.
@@ -65,8 +65,8 @@ We treat data sources differently based on their origin:
 
 ### Phase 2: AI Extraction Refinement (✅ COMPLETE)
 - [x] **Fixed AI JSON Issues:** Czech prompts, "cena bez DPH", regex fallback.
-- [x] **Batch Import:** Processed 27/28 files successfully.
-- [x] **Database Stats:** 379 items, 620 price records.
+- [x] **Systém pro import:** Vytvořen nahrávací panel přímo v Google Sheets.
+- [x] **Deduplikace:** Implementováno rozpoznávání stejných souborů a čísel nabídek.
 
 ### Phase 3: Frontend & UX (✅ COMPLETE)
 - [x] **Price History Chart:** Chart.js integration.
@@ -84,14 +84,8 @@ We treat data sources differently based on their origin:
 
 ---
 
-## 📊 4. Data Sources Processed
-
-| Folder | Type | Files | Status |
-|--------|------|-------|--------|
-| `Input/01_Nabidky_PDF` | Supplier PDFs | 8+ | ✅ Imported |
-| `Input/02_Historie_Excel` | Internal Budgets | 20+ | ✅ Imported |
-
-**Total Extracted:** 379 unique items, 620 price records across all sources.
+## 📊 4. Datové zdroje
+Data jsou nyní nahrávána přímo uživatelem přes **Centrum nahrávání** v Google Sheets. Systém automaticky rozlišuje mezi PDF nabídkami a Excel rozpočty a ukládá je do cloudové databáze (Supabase).
 
 ---
 
@@ -218,7 +212,7 @@ ceneni/
 
 ---
 
-## 🏗️ Phase 6: Advanced Upload Panel (MANDATORY) - PLANNED
+## 🏗️ Phase 6: Advanced Upload Panel (MANDATORY) - ✅ COMPLETE
 > **Goal:** High-end standalone sidebar for effortless data ingestion without local Python knowledge.
 
 ### 1. UX/UI Features (Premium Design)

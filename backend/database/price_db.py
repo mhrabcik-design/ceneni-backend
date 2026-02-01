@@ -55,6 +55,12 @@ class PriceDatabase:
             except Exception as e:
                 return {"items": 0, "prices": 0, "url": str(self.engine.url), "error": str(e)}
 
+    def reset_all_data(self):
+        """Drops all tables and recreates them. Use with caution!"""
+        self.metadata.drop_all(self.engine)
+        self.metadata.create_all(self.engine)
+        return True
+
     def delete_item(self, item_id):
         return self.delete_items([item_id])
 
@@ -298,6 +304,37 @@ class PriceDatabase:
                 "sources": sources,
                 "price_history": price_history
             }
+
+    def get_labor_items(self):
+        """Fetch all unique items that have a labor price (to be used for suggestions)."""
+        with self.engine.connect() as conn:
+            # We want items where price_labor > 0, getting latest price info
+            latest_price_sub = select(
+                self.prices.c.item_id,
+                func.max(self.prices.c.id).label('latest_id')
+            ).where(self.prices.c.price_labor > 0).group_by(self.prices.c.item_id).subquery()
+
+            stmt = select(
+                self.items.c.id,
+                self.items.c.name,
+                self.prices.c.price_labor,
+                self.prices.c.unit
+            ).select_from(
+                self.items
+                .join(latest_price_sub, self.items.c.id == latest_price_sub.c.item_id)
+                .join(self.prices, latest_price_sub.c.latest_id == self.prices.c.id)
+            ).order_by(self.items.c.name)
+
+            rows = conn.execute(stmt).fetchall()
+            return [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "price_labor": r.price_labor,
+                    "unit": r.unit
+                }
+                for r in rows
+            ]
 
     def get_all_items_admin(self):
         """Fetch all items with their latest prices for administrative editing."""

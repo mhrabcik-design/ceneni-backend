@@ -87,6 +87,44 @@ ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM (začni {{ a skonči }}):"""
             print(f"Detail AI Error: {e}")
             return None
 
+    def suggest_labor(self, material_name, labor_items):
+        """
+        Takes a material name and a list of available labor items.
+        Returns the top 3 suggested labor items.
+        """
+        # Limit labor items to avoid token overload (take first 200 items if too many)
+        catalog_sample = labor_items[:200]
+        catalog_text = "\n".join([f"- ID: {i['id']} | {i['name']} | Cena: {i['price_labor']}" for i in catalog_sample])
+
+        prompt = f"""Jsi expert na elektroinstalace. 
+ÚKOL: Na základě materiálu vyber nejvhodnější MONTAŽNÍ PRÁCE z tvého seznamu.
+
+MATERIÁL: {material_name}
+
+SEZNAM PRACÍ:
+{catalog_text}
+
+PRAVIDLA:
+1. Vyber maximálně 3 nejpravděpodobnější položky (montáž, uložení, zapojení).
+2. Pokud materiál je kabel, hledej montáž kabelu. Pokud je to vypínač, hledej montáž přístroje.
+3. Vrať POUZE seznam ID vybraných prací oddělených čárkou. Nic jiného!
+4. Pokud žádná práce neodpovídá, vrať prázdný řetězec.
+
+VÝSTUP (POUZE ID):"""
+
+        try:
+            response = self.model.generate_content(prompt)
+            raw = response.text.replace(" ", "").strip()
+            # Parse IDs
+            ids = [int(i) for i in raw.split(",") if i.isdigit()]
+            
+            # Reconstruct items from IDs
+            suggestions = [item for item in labor_items if item['id'] in ids]
+            return suggestions[:3]
+        except Exception as e:
+            print(f"Labor Suggestion AI Error: {e}")
+            return []
+
     def _parse_json(self, text):
         # Remove markdown code blocks if present
         text = text.replace("```json", "").replace("```", "").strip()

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap">
+    <style>
+        :root {
+            --google-blue: #1a73e8;
+            --google-blue-hover: #1557b0;
+            --border-color: #dadce0;
+            --bg-color: #ffffff;
+            --secondary-bg: #f8f9fa;
+            --text-main: #3c4043;
+            --text-secondary: #70757a;
+            --error-red: #d93025;
+            --success-green: #1e8e3e;
+            --warning-orange: #f9ab00;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 16px;
+            background-color: var(--secondary-bg);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            font-size: 13px;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .pulse.online {
+            background: var(--success-green);
+        }
+
+        .pulse.offline {
+            background: var(--error-red);
+        }
+
+        /* Card Section */
+        .section-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        }
+
+        h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        input,
+        select {
+            width: 100%;
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--google-blue);
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--google-blue);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--google-blue-hover);
+            box-shadow: 0 1px 3px 1px rgba(60, 64, 67, .15), 0 1px 2px 0 rgba(60, 64, 67, .3);
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--google-blue);
+            border-color: var(--border-color);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: #f6fafe;
+            border-color: var(--google-blue);
+        }
+
+        .btn-danger {
+            background: white;
+            color: var(--error-red);
+            border-color: var(--border-color);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #fdf2f2;
+            border-color: var(--error-red);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Chart & Table */
+        .results-container {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #chart-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .comp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 12px;
+        }
+
+        .comp-table th {
+            text-align: left;
+            color: var(--text-secondary);
+            padding: 6px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .comp-table td {
+            padding: 8px 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Status -->
+    <div class="status-badge">
+        <div class="pulse" id="status-dot"></div>
+        <span id="status-text">Zjišťování stavu...</span>
+    </div>
+
+    <!-- Main Pricing -->
+    <div class="section-card">
+        <h2>🚀 Automatické oceňování</h2>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+                <label>Popis (Sloupec)</label>
+                <input type="text" id="col-desc" value="C">
+            </div>
+            <div style="flex: 1;">
+                <label>Cena (Sloupec)</label>
+                <input type="text" id="col-price" value="F">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Druh cenové hladiny</label>
+            <select id="price-type">
+                <option value="material">📦 Materiál (Dodávka)</option>
+                <option value="labor">🔧 Montáž (Práce)</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="runPricing()" id="btn-run">Ocenit označený výběr</button>
+        <button class="btn btn-outline" style="margin-top: 8px; border-color: var(--warning-orange); color: #b07d00;"
+            onclick="openLaborSuggestions()">
+            💡 Najít montáž k položce
+        </button>
+    </div>
+
+    <!-- History & Analysis -->
+    <div class="section-card">
+        <h2>📊 Historie a analýza</h2>
+        <div style="display: flex; gap: 4px; margin-bottom: 12px;">
+            <input type="text" id="hist-search" placeholder="Hledat položku v DB...">
+            <button class="btn btn-outline" style="width: 44px; padding: 0;" onclick="loadFromCell()"
+                title="Načíst z buňky">📋</button>
+        </div>
+        <button class="btn btn-outline" onclick="showHistory()" id="btn-hist">Zobrazit vývoj ceny</button>
+
+        <div id="chart-container" class="results-container" style="display: none;">
+            <div id="chart-title"></div>
+            <canvas id="priceChart"></canvas>
+
+            <div style="margin-top: 16px;">
+                <label>Přehled dodavatelů</label>
+                <div id="comparison-table" style="max-height: 180px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback & Tools -->
+    <div class="section-card">
+        <h2>⚙️ Nástroje a správa</h2>
+        <button class="btn btn-danger" onclick="blacklistItem()">
+            Odstranit položku z databáze
+        </button>
+
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+            <label>Přidat novou cenu ručně</label>
+            <input type="text" id="custom-name" placeholder="Název nové položky" style="margin-bottom: 8px;">
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input type="number" id="custom-price-mat" placeholder="Mat. [Kč]">
+                <input type="number" id="custom-price-lab" placeholder="Práce [Kč]">
+            </div>
+            <button class="btn btn-outline" onclick="addCustomPrice()" id="btn-add">
+                Uložit do databáze
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let myChart = null;
+
+        function runPricing() {
+            const desc = document.getElementById('col-desc').value;
+            const price = document.getElementById('col-price').value;
+            const priceType = document.getElementById('price-type').value;
+            const btn = document.getElementById('btn-run');
+
+            btn.innerText = "Zpracovávám...";
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(() => {
+                    btn.innerText = "Ocenit označený výběr";
+                    btn.disabled = false;
+                })
+                .withFailureHandler((err) => {
+                    alert("Chyba: " + err);
+                    btn.innerText = "Ocenit označený výběr";
+                    btn.disabled = false;
+                })
+                .priceSelection(desc, price, priceType);
+        }
+
+        function openLaborSuggestions() {
+            google.script.run.openLaborSuggestions();
+        }
+
+        function loadFromCell() {
+            google.script.run.withSuccessHandler((value) => {
+                if (value) {
+                    document.getElementById('hist-search').value = value;
+                    document.getElementById('custom-name').value = value;
+                }
+            }).getActiveCellValue();
+        }
+
+        function blacklistItem() {
+            if (!confirm("Opravdu chcete tuto položku smazat z cloudu?")) return;
+            google.script.run.withSuccessHandler((itemId) => {
+                if (!itemId) return alert("Označte oceněnou buňku s poznámkou.");
+                google.script.run.withSuccessHandler((r) => {
+                    if (r.success) alert("Položka byla úspěšně smazána."); else alert("Chyba: " + r.error);
+                }).deleteItem(itemId);
+            }).getItemIdFromActiveCell();
+        }
+
+        function addCustomPrice() {
+            const name = document.getElementById('custom-name').value;
+            const priceMat = parseFloat(document.getElementById('custom-price-mat').value) || 0;
+            const priceLab = parseFloat(document.getElementById('custom-price-lab').value) || 0;
+            if (!name) return alert("Zadejte prosím název.");
+
+            const btn = document.getElementById('btn-add');
+            btn.innerText = "Ukládám..."; btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler((r) => {
+                    btn.innerText = "Uložit do databáze"; btn.disabled = false;
+                    if (r.success) {
+                        alert("Položka byla uložena!");
+                        document.getElementById('custom-name').value = '';
+                        document.getElementById('custom-price-mat').value = '';
+                        document.getElementById('custom-price-lab').value = '';
+                    } else alert("Chyba: " + r.error);
+                })
+                .addCustomItem(name, priceMat, priceLab, 'ks');
+        }
+
+        function showHistory() {
+            const query = document.getElementById('hist-search').value;
+            if (!query) return;
+            const btn = document.getElementById('btn-hist');
+            btn.innerText = "Hledám..."; btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler((data) => {
+                    btn.innerText = "Zobrazit vývoj ceny"; btn.disabled = false;
+                    if (data && data.history) renderChart(data.itemName, data.history);
+                    else alert("Pro tuto položku nebyla nalezena žádná data.");
+                })
+                .withFailureHandler(() => { btn.innerText = "Zobrazit vývoj ceny"; btn.disabled = false; })
+                .getItemHistory(query);
+        }
+
+        function renderChart(itemName, historyData) {
+            document.getElementById('chart-container').style.display = 'block';
+            document.getElementById('chart-title').innerText = itemName;
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            // Table
+            let tableHtml = '<table class="comp-table"><tr><th>Zdroj</th><th>Datum</th><th>Cena</th></tr>';
+            const sortedTable = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
+            sortedTable.forEach(row => {
+                const total = (row.price_material + row.price_labor).toLocaleString('cs-CZ');
+                tableHtml += `<tr><td>${row.vendor || 'Interní'}</td><td>${row.date || '---'}</td><td style="font-weight:600;color:var(--google-blue)">${total}</td></tr>`;
+            });
+            document.getElementById('comparison-table').innerHTML = tableHtml + '</table>';
+
+            // Chart
+            const sortedChart = [...historyData].sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedChart.map(d => d.date),
+                    datasets: [{
+                        data: sortedChart.map(d => d.price_material + d.price_labor),
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { display: false } },
+                        y: { grid: { color: '#f0f0f0' }, ticks: { color: '#70757a', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        setInterval(() => {
+            google.script.run.withSuccessHandler((status) => {
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+                if (status && status.total_items !== undefined) {
+                    dot.className = 'pulse online';
+                    text.innerText = 'Server připojen (' + status.total_items + ' položek)';
+                } else { dot.className = 'pulse offline'; text.innerText = 'Server odpojen'; }
+            }).getBackendStatus();
+        }, 5000);
+    </script>
+</body>
+
+</html>

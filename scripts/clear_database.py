@@ -6,9 +6,9 @@ import sys
 from dotenv import load_dotenv
 from sqlalchemy import text
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backend'))
 
 from database.price_db import PriceDatabase
 

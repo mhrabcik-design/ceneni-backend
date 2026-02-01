@@ -17,6 +17,8 @@ function onOpen() {
         .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
         .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
         .addItem('🗑️ Správa: SMAZAT VÝBĚR', 'deleteSelectedAdminItems')
+        .addSeparator()
+        .addItem('🧨 RESET CELÉ DATABÁZE', 'resetDatabaseWithConfirmation')
         .addToUi();
 }
 
@@ -33,6 +35,78 @@ function showUploadPanel() {
         .setWidth(450)
         .setHeight(600);
     SpreadsheetApp.getUi().showModalDialog(html, '📦 Centrum nahrávání');
+}
+
+/**
+ * Otevře vyskakovací okno s návrhy montážních prací
+ */
+function openLaborSuggestions() {
+    const html = HtmlService.createHtmlOutputFromFile('LaborSuggestions')
+        .setWidth(600)
+        .setHeight(400);
+    SpreadsheetApp.getUi().showModalDialog(html, '💡 Návrhy montáže');
+}
+
+/**
+ * Vrátí název materiálu z aktuálního řádku pro kontext okna
+ */
+function getSuggestionContext() {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const cell = sheet.getActiveCell();
+    // Předpokládáme, že popis je ve sloupci C (nebo dle nastavení v sidebaru, ale pro zjednodušení zkusíme aktivní buňku nebo sloupec C)
+    const row = cell.getRow();
+    const description = sheet.getRange(row, 3).getValue() || cell.getValue();
+    return { material: String(description), row: row };
+}
+
+/**
+ * Volání backendu pro získání doporučených prací
+ */
+function getLaborSuggestionsFromAPI(materialName) {
+    const url = `${API_BASE_URL}/match/labor-suggestions`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify({ 'material_name': materialName }),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            return JSON.parse(response.getContentText());
+        }
+    } catch (e) {
+        Logger.log("Chyba návrhů: " + e.message);
+    }
+    return [];
+}
+
+/**
+ * Vloží nový řádek s vybranou montáží přímo pod aktuální řádek
+ */
+function insertLaborRow(name, price, itemId) {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const activeCell = sheet.getActiveCell();
+    const row = activeCell.getRow();
+
+    // Vložit řádek pod
+    sheet.insertRowAfter(row);
+    const newRow = row + 1;
+
+    // Nastavit název (sloupec C) a cenu (sloupec F - dle tvého standardu)
+    sheet.getRange(newRow, 3).setValue(name);
+    const priceCell = sheet.getRange(newRow, 6);
+    priceCell.setValue(price);
+
+    // Přidat poznámku s ID (důležité pro budoucí identifikaci)
+    priceCell.setNote(`🔧 Montážní položka z DB\n🔗 ID: ${itemId}\n📅 Datum: ${new Date().toLocaleDateString('cs-CZ')}`);
+
+    // Volitelně: Formátování (odsazení názvu)
+    sheet.getRange(newRow, 3).setHorizontalAlignment("left").setIndent(1);
+
+    return true;
 }
 
 /**
@@ -548,6 +622,57 @@ function clearAdminFilter() {
     const adminSheet = ss.getSheetByName("ADMIN_DATABASE");
     if (adminSheet && adminSheet.getFilter()) {
         adminSheet.getFilter().remove();
+    }
+}
+
+/**
+ * Nukleární možnost: Reset celého systému se dvěma stupni potvrzení.
+ */
+function resetDatabaseWithConfirmation() {
+    const ui = SpreadsheetApp.getUi();
+
+    // 1. Stupeň varování
+    const response = ui.alert(
+        '🧨 POZOR: ÚPLNÝ RESET DATABÁZE',
+        'Tato akce trvale vymaže VŠECHNY položky, ceny i historii z vaší databáze. \n\nOpravdu chcete pokračovat?',
+        ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) return;
+
+    // 2. Stupeň varování - zadání potvrzovacího kódu
+    const promptResponse = ui.prompt(
+        'POTVRZENÍ SMAZÁNÍ',
+        'Pro potvrzení akce napište do pole níže slovo: SMAZAT',
+        ui.ButtonSet.OK_CANCEL
+    );
+
+    if (promptResponse.getSelectedButton() === ui.Button.OK &&
+        promptResponse.getResponseText().trim().toUpperCase() === "SMAZAT") {
+
+        const url = `${API_BASE_URL}/admin/reset-database`;
+        const options = {
+            'method': 'post',
+            'contentType': 'application/json',
+            'headers': { 'bypass-tunnel-reminder': 'true' },
+            'muteHttpExceptions': true
+        };
+
+        try {
+            const res = UrlFetchApp.fetch(url, options);
+            if (res.getResponseCode() === 200) {
+                ui.alert("✅ Hotovo!", "Databáze byla kompletně vyčištěna. Můžete začít s novým importem.", ui.ButtonSet.OK);
+                // Pokud máme otevřený ADMIN_DATABASE, vymažeme ho taky
+                const adminSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ADMIN_DATABASE");
+                if (adminSheet) adminSheet.clear();
+            } else {
+                ui.alert("❌ Chyba:", res.getContentText(), ui.ButtonSet.OK);
+            }
+        } catch (e) {
+            ui.alert("❌ Chyba sítě:", e.message, ui.ButtonSet.OK);
+        }
+    } else {
+        ui.alert("❌ Akce zrušena.", "Slovo nebylo zadáno správně.", ui.ButtonSet.OK);
     }
 }
 

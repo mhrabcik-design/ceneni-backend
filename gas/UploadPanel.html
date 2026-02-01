@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;800&display=swap">
+    <style>
+        :root {
+            --google-blue: #1a73e8;
+            --google-blue-hover: #1557b0;
+            --border-color: #dadce0;
+            --secondary-bg: #f8f9fa;
+            --text-main: #3c4043;
+            --text-secondary: #70757a;
+            --success-green: #1e8e3e;
+            --error-red: #d93025;
+            --warning-orange: #f9ab00;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 24px;
+            background-color: var(--secondary-bg);
+            color: var(--text-main);
+            box-sizing: border-box;
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            border-left: 4px solid var(--google-blue);
+            padding-left: 16px;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .type-selector {
+            display: flex;
+            gap: 12px;
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .type-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .type-btn.active {
+            background: #e8f0fe;
+            color: var(--google-blue);
+        }
+
+        .dropzone {
+            height: 180px;
+            border: 2px dashed var(--border-color);
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: var(--google-blue);
+            background: #f1f6ff;
+        }
+
+        .dropzone-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
+        }
+
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .file-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .file-status {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .progress-container {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--google-blue);
+            transition: width 0.3s;
+        }
+
+        .btn-upload {
+            padding: 14px;
+            background: var(--google-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-upload:hover:not(:disabled) {
+            background: var(--google-blue-hover);
+            box-shadow: 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+        }
+
+        .btn-upload:disabled {
+            background: #dadce0;
+            color: #70757a;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .status-success {
+            color: var(--success-green);
+        }
+
+        .status-error {
+            color: var(--error-red);
+        }
+
+        .status-duplicate {
+            color: var(--warning-orange);
+        }
+
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 1000;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Centrum nahrávání</h1>
+            <div class="subtitle">Cloudový import dokumentů do databáze</div>
+        </header>
+
+        <div class="type-selector">
+            <button class="type-btn active" id="type-supplier" onclick="setType('supplier')">
+                📦 Nabídky (PDF)
+            </button>
+            <button class="type-btn" id="type-internal" onclick="setType('internal')">
+                🔨 Rozpočty (XLS)
+            </button>
+        </div>
+
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+            <div class="dropzone-icon">☁️</div>
+            <div style="font-weight: 500;">Přetáhněte soubory sem</div>
+            <div class="subtitle">nebo klikněte pro výběr z PC</div>
+            <input type="file" id="file-input" multiple hidden accept=".pdf,.xlsx,.xls">
+        </div>
+
+        <div id="file-list-container" class="file-list"></div>
+
+        <button class="btn-upload" id="upload-btn" onclick="startBatchUpload()" disabled>
+            Spustit cloudové zpracování
+        </button>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        let currentType = 'supplier';
+        const API_BASE_URL = "https://ceneni-backend.onrender.com";
+
+        function setType(type) {
+            currentType = type;
+            document.getElementById('type-supplier').classList.toggle('active', type === 'supplier');
+            document.getElementById('type-internal').classList.toggle('active', type === 'internal');
+        }
+
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const fileList = document.getElementById('file-list-container');
+        const uploadBtn = document.getElementById('upload-btn');
+
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            for (const file of files) {
+                if (selectedFiles.some(f => f.name === file.name)) continue;
+                const fileObj = { file, name: file.name, id: 'file-' + Date.now() + Math.random(), status: 'pending' };
+                selectedFiles.push(fileObj);
+                renderFileItem(fileObj);
+            }
+            uploadBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function renderFileItem(fileObj) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.id = fileObj.id;
+            div.innerHTML = `
+        <div class="file-info"><span class="file-name">${fileObj.name}</span><span class="file-status" id="status-${fileObj.id}">Připraveno</span></div>
+        <div class="progress-container"><div class="progress-bar" id="bar-${fileObj.id}"></div></div>
+      `;
+            fileList.appendChild(div);
+            fileList.scrollTop = fileList.scrollHeight;
+        }
+
+        async function startBatchUpload() {
+            uploadBtn.disabled = true;
+            const pending = selectedFiles.filter(f => f.status === 'pending');
+            for (const f of pending) await uploadSingleFile(f);
+            uploadBtn.disabled = false;
+            if (selectedFiles.every(f => f.status === 'success' || f.status === 'duplicate')) createConfetti();
+        }
+
+        async function uploadSingleFile(f) {
+            const statusEl = document.getElementById(`status-${f.id}`);
+            const barEl = document.getElementById(`bar-${f.id}`);
+            statusEl.innerText = "Zpracovávám...";
+            barEl.style.width = "40%";
+
+            const formData = new FormData();
+            formData.append('file', f.file);
+            formData.append('file_type', currentType);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/ingest/upload`, { method: 'POST', body: formData, headers: { 'bypass-tunnel-reminder': 'true' } });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    f.status = 'success'; statusEl.innerText = "Hotovo"; statusEl.className = 'file-status status-success'; barEl.style.width = "100%"; barEl.style.background = 'var(--success-green)';
+                } else if (result.status === 'duplicate') {
+                    f.status = 'duplicate'; statusEl.innerText = "Duplikát"; statusEl.className = 'file-status status-duplicate'; barEl.style.width = "100%"; barEl.style.background = 'var(--warning-orange)';
+                } else {
+                    f.status = 'error'; statusEl.innerText = result.message || "Chyba"; statusEl.className = 'file-status status-error'; barEl.style.width = "100%"; barEl.style.background = 'var(--error-red)';
+                }
+            } catch (e) {
+                f.status = 'error'; statusEl.innerText = "Chyba sítě"; statusEl.className = 'file-status status-error'; barEl.style.width = "100%"; barEl.style.background = 'var(--error-red)';
+            }
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 40; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.backgroundColor = ['#1a73e8', '#34a853', '#fabb05', '#ea4335'][Math.floor(Math.random() * 4)];
+                c.style.animation = `fall ${Math.random() * 2 + 2}s linear forwards`;
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 4000);
+            }
+        }
+    </script>
+</body>
+
+</html>

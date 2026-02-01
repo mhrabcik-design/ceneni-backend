@@ -9,8 +9,8 @@ Tento systém propojuje Google Sheets s umělou inteligencí (Gemini) a cloudovo
 Pokud instalujete systém do nové tabulky nebo aktualizujete kód, postupujte takto:
 
 1.  V Google Sheets otevřete **Rozšíření -> Apps Script**.
-2.  **Soubor Code.gs:** Vložte obsah souboru `google_sheets_script.js`.
-3.  **Nový soubor HTML:** Klikněte na `+` -> `HTML`, pojmenujte ho `Sidebar` a vložte obsah souboru `Sidebar.html`.
+2.  **Soubor Code.gs:** Vložte obsah souboru `gas/google_sheets_script.js`.
+3.  **Nový soubor HTML:** Klikněte na `+` -> `HTML`, pojmenujte ho `Sidebar` (vložte `gas/Sidebar.html`) a případně `UploadPanel` (vložte `gas/UploadPanel.html`).
 4.  Uložte (Ctrl+S) a obnovte kartu s tabulkou (F5).
 5.  V horním menu se objeví **🤖 AI Asistent**.
 
