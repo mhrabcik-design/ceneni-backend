@@ -51,19 +51,27 @@ class PriceDatabase:
     def _migrate_schema(self):
         """Internal helper to ensure column upgrades."""
         with self.engine.connect() as conn:
-            # Check for source_type column
             try:
-                conn.execute(text("SELECT source_type FROM sources LIMIT 1"))
+                # Check for source_type column using information_schema for more reliability (Postgres)
+                if "postgresql" in str(self.engine.url):
+                    check_sql = text("SELECT 1 FROM information_schema.columns WHERE table_name='sources' AND column_name='source_type'")
+                    exists = conn.execute(check_sql).fetchone()
+                    if exists: return
+                else:
+                    # Generic check for SQLite/others
+                    conn.execute(text("SELECT source_type FROM sources LIMIT 1"))
+                    return
             except Exception:
-                # Column likely doesn't exist, add it
-                print("⚠️ Migrating database: Adding source_type column to sources...")
-                try:
-                    conn.execute(text("ALTER TABLE sources ADD COLUMN source_type VARCHAR DEFAULT 'SUPPLIER'"))
-                    conn.commit()
-                    print("✅ Migration successful.")
-                except Exception as e:
-                    print(f"❌ Migration failed: {e}")
-                    pass
+                pass
+
+        # If we reach here, column is missing
+        print("⚠️ Migrating database: Adding source_type column to sources...")
+        try:
+            with self.engine.begin() as trans_conn:
+                trans_conn.execute(text("ALTER TABLE sources ADD COLUMN source_type VARCHAR DEFAULT 'SUPPLIER'"))
+            print("✅ Migration successful.")
+        except Exception as e:
+            print(f"❌ Migration failed: {e}")
 
     def get_stats(self):
         with self.engine.connect() as conn:
