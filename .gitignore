@@ -1,12 +1,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+input/
+Input/
+.DS_Store
 .env
-.venv
-env/
-venv/
-ENV/
-Input/temp_*
-Input/04_Databaze/*.db
+.clasp.json
+node_modules/
 *.tmp
 *.log
