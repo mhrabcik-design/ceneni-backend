@@ -46,6 +46,24 @@ class PriceDatabase:
         )
         
         self.metadata.create_all(self.engine)
+        self._migrate_schema()
+
+    def _migrate_schema(self):
+        """Internal helper to ensure column upgrades."""
+        with self.engine.connect() as conn:
+            # Check for source_type column
+            try:
+                conn.execute(text("SELECT source_type FROM sources LIMIT 1"))
+            except Exception:
+                # Column likely doesn't exist, add it
+                print("⚠️ Migrating database: Adding source_type column to sources...")
+                try:
+                    conn.execute(text("ALTER TABLE sources ADD COLUMN source_type VARCHAR DEFAULT 'SUPPLIER'"))
+                    conn.commit()
+                    print("✅ Migration successful.")
+                except Exception as e:
+                    print(f"❌ Migration failed: {e}")
+                    pass
 
     def get_stats(self):
         with self.engine.connect() as conn:
