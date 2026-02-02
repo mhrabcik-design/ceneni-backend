@@ -31,8 +31,17 @@ Panel otevřete přes menu: **🤖 AI Asistent -> Otevřít panel**.
 3.  Klikněte na **🚀 Ocenit výběr**.
 4.  **Výsledek:**
     *   Do buněk se doplní nejlepší nalezená cena.
+    *   **Zelené pozadí:** Manuální výběr z menu – 100% potvrzeno.
     *   **Oranžové pozadí:** Shoda je nižší než 60 % (zkontrolujte položku).
+    *   **Bez pozadí:** Automatická shoda nad 60% (OK).
     *   **Poznámka u buňky:** Obsahuje název z DB, % shody, zdroj a datum ceny.
+
+### 🎯 Menu kandidátů (nová funkce)
+Pokud systém najde položku s nízkou shodou (pod threshold):
+1.  Klikněte na buňku s oranžovým pozadím.
+2.  V sidebaru se automaticky zobrazí **Top kandidáti** s názvy, cenami a zdroji.
+3.  Vyberte správnou položku jedním klikem.
+4.  Buňka se **zazelení** (manuální výběr = 100% správně).
 
 ### 💡 Chytré návrhy montáže (Labor Suggestion)
 1. Označte buňku s materiálem, který jste právě ocenili (nebo má vyplněnou poznámku).

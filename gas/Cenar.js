@@ -287,9 +287,12 @@ function applyCandidate(row, candidate, type) {
     const priceCell = sheet.getRange(row, priceColIdx);
     priceCell.setValue(price);
 
+    // Zelená = manuální výběr (100% správně)
+    priceCell.setBackground('#d4edda');
+
     // Přidat poznámku
     const note = `📦 ${candidate.item || 'N/A'}\n` +
-        `📊 Ruční výběr (Shoda: ${Math.round((candidate.match_score || 0) * 100)}%)\n` +
+        `✅ Manuální výběr (100%)\n` +
         `🏢 Zdroj: ${candidate.source || 'N/A'}\n` +
         `📅 Datum: ${candidate.date || 'N/A'}\n` +
         `🔗 ID: ${candidate.id || 'N/A'}`;

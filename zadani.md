@@ -166,6 +166,7 @@ After pricing, each cell contains a note:
 ```
 
 ### Visual Indicators
+- **Green background** = Manual selection (100% confirmed)
 - **Orange background** = Match score < 60% (needs review)
 - **No background** = Match score ≥ 60% (good match)
 
