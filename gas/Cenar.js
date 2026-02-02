@@ -13,8 +13,8 @@ function getSettings() {
     return {
         threshold: parseFloat(props.getProperty('threshold') || '0.4'),
         colDesc: props.getProperty('colDesc') || 'C',
-        colPrice: props.getProperty('colPrice') || 'F',
-        priceType: props.getProperty('priceType') || 'material'
+        colMaterial: props.getProperty('colMaterial') || 'I',
+        colLabor: props.getProperty('colLabor') || 'J'
     };
 }
 
@@ -25,8 +25,8 @@ function setSettings(settings) {
     const props = PropertiesService.getUserProperties();
     props.setProperty('threshold', settings.threshold.toString());
     props.setProperty('colDesc', settings.colDesc);
-    props.setProperty('colPrice', settings.colPrice);
-    props.setProperty('priceType', settings.priceType);
+    props.setProperty('colMaterial', settings.colMaterial);
+    props.setProperty('colLabor', settings.colLabor);
     return true;
 }
 
@@ -143,20 +143,21 @@ function getActiveCellValue() {
 }
 
 /**
- * Hlavní funkce pro ocenění vybrané oblasti
+ * Hlavní funkce pro ocenění vybrané oblasti - DUAL (Materiál + Práce najednou)
  * @param {string} descColLetter - Sloupec s popisem položky
- * @param {string} priceColLetter - Sloupec pro cenu
- * @param {string} priceType - 'material' nebo 'labor'
+ * @param {string} materialColLetter - Sloupec pro cenu materiálu
+ * @param {string} laborColLetter - Sloupec pro cenu práce
  */
-function priceSelection(descColLetter, priceColLetter, priceType) {
+function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     const sheet = SpreadsheetApp.getActiveSheet();
     const range = sheet.getActiveRange();
     const values = range.getValues();
     const startRow = range.getRow();
+    const settings = getSettings();
 
-    // Převod písmen sloupců na indexy (A=1, B=2, C=3)
     const descCol = columnLetterToIndex(descColLetter);
-    const priceCol = columnLetterToIndex(priceColLetter);
+    const materialCol = columnLetterToIndex(materialColLetter);
+    const laborCol = columnLetterToIndex(laborColLetter);
 
     let matchesFound = 0;
 
@@ -166,33 +167,61 @@ function priceSelection(descColLetter, priceColLetter, priceType) {
 
         if (!description || String(description).length < 3) continue;
 
+        // Fetch MATERIAL price
+        const matchMaterial = fetchMatch(description, 'material', settings.threshold);
+        if (matchMaterial) {
+            const priceCell = sheet.getRange(currentRow, materialCol);
+            priceCell.setValue(matchMaterial.price || 0);
+            const matchScore = matchMaterial.match_score || 0;
+            priceCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
+            priceCell.setNote(`📦 ${matchMaterial.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchMaterial.source || 'N/A'}\n📅 Datum: ${matchMaterial.date || 'N/A'}\n🔗 ID: ${matchMaterial.item_id || 'N/A'}`);
+        }
+
+        // Fetch LABOR price
+        const matchLabor = fetchMatch(description, 'labor', settings.threshold);
+        const laborCell = sheet.getRange(currentRow, laborCol);
+        if (matchLabor && matchLabor.price > 0) {
+            laborCell.setValue(matchLabor.price);
+            const matchScore = matchLabor.match_score || 0;
+            laborCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
+            laborCell.setNote(`🔧 ${matchLabor.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchLabor.source || 'N/A'}\n📅 Datum: ${matchLabor.date || 'N/A'}\n🔗 ID: ${matchLabor.item_id || 'N/A'}`);
+        } else {
+            // No labor match - set 0
+            laborCell.setValue(0);
+            laborCell.setBackground(null);
+            laborCell.setNote('🔧 Práce nenalezena v DB');
+        }
+
+        if (matchMaterial || matchLabor) matchesFound++;
+    }
+
+    SpreadsheetApp.getUi().alert(`Hotovo! Oceněno ${matchesFound} položek (Materiál + Práce).`);
+}
+
+// Keep old function for backward compatibility (deprecated)
+function priceSelection(descColLetter, priceColLetter, priceType) {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const range = sheet.getActiveRange();
+    const values = range.getValues();
+    const startRow = range.getRow();
+    const descCol = columnLetterToIndex(descColLetter);
+    const priceCol = columnLetterToIndex(priceColLetter);
+    let matchesFound = 0;
+    for (let i = 0; i < values.length; i++) {
+        const currentRow = startRow + i;
+        const description = sheet.getRange(currentRow, descCol).getValue();
+        if (!description || String(description).length < 3) continue;
         const settings = getSettings();
-        const match = fetchMatch(description, priceType || settings.priceType, settings.threshold);
+        const match = fetchMatch(description, priceType, settings.threshold);
         if (match) {
             const priceCell = sheet.getRange(currentRow, priceCol);
             priceCell.setValue(match.price || 0);
-
-            // Barva podle kvality shody
             const matchScore = match.match_score || 0;
-            if (matchScore < 0.6) {
-                // Nízká shoda - oranžová (varování)
-                priceCell.setBackground('#fff3cd');
-            } else {
-                // Dobrá shoda - reset na výchozí
-                priceCell.setBackground(null);
-            }
-
-            // Přidat poznámku s originálním názvem pro transparentnost
-            const note = `📦 ${match.original_name || 'N/A'}\n` +
-                `📊 Shoda: ${Math.round(matchScore * 100)}%\n` +
-                `🏢 Zdroj: ${match.source || 'N/A'}\n` +
-                `📅 Datum: ${match.date || 'N/A'}\n` +
-                `🔗 ID: ${match.item_id || 'N/A'}`;
-            priceCell.setNote(note);
+            priceCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
+            priceCell.setNote(`📦 ${match.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${match.source || 'N/A'}\n📅 Datum: ${match.date || 'N/A'}\n🔗 ID: ${match.item_id || 'N/A'}`);
             matchesFound++;
         }
     }
-
     SpreadsheetApp.getUi().alert(`Hotovo! Oceněno ${matchesFound} položek.`);
 }
 
@@ -238,37 +267,42 @@ function fetchMatch(description, priceType, threshold) {
 }
 
 /**
- * Získá kandidáty pro aktuálně vybranou buňku (pokud je v cenovém sloupci a prázdná)
+ * Získá kandidáty pro aktuálně vybranou buňku (pokud je v cenovém sloupci Materiál nebo Práce)
  */
 function getActiveCellContext() {
     const sheet = SpreadsheetApp.getActiveSheet();
     const cell = sheet.getActiveCell();
     const settings = getSettings();
 
-    // Převedeme písmeno sloupce na index
-    const priceColIdx = columnLetterToIndex(settings.colPrice);
+    const materialColIdx = columnLetterToIndex(settings.colMaterial);
+    const laborColIdx = columnLetterToIndex(settings.colLabor);
     const descColIdx = columnLetterToIndex(settings.colDesc);
+    const currentCol = cell.getColumn();
 
-    // Pouze pokud jsme ve sloupci s cenou
-    if (cell.getColumn() !== priceColIdx) return null;
+    // Určíme typ podle sloupce
+    let priceType = null;
+    if (currentCol === materialColIdx) {
+        priceType = 'material';
+    } else if (currentCol === laborColIdx) {
+        priceType = 'labor';
+    } else {
+        return null; // Nejsme v cenovém sloupci
+    }
 
     const row = cell.getRow();
     const description = sheet.getRange(row, descColIdx).getValue();
-    const currentPrice = cell.getValue();
 
     if (!description || description.toString().length < 3) return null;
 
-    // Pokud je buňka prázdná, najdeme kandidáty
-    if (!currentPrice || currentPrice === "") {
-        const match = fetchMatch(description, settings.priceType, settings.threshold);
-        if (match && match.candidates && match.candidates.length > 0) {
-            return {
-                row: row,
-                description: description,
-                candidates: match.candidates,
-                type: settings.priceType
-            };
-        }
+    // Najdeme kandidáty pro příslušný typ
+    const match = fetchMatch(description, priceType, settings.threshold);
+    if (match && match.candidates && match.candidates.length > 0) {
+        return {
+            row: row,
+            description: description,
+            candidates: match.candidates,
+            type: priceType
+        };
     }
     return null;
 }
@@ -279,19 +313,24 @@ function getActiveCellContext() {
 function applyCandidate(row, candidate, type) {
     const sheet = SpreadsheetApp.getActiveSheet();
     const settings = getSettings();
-    const priceColIdx = columnLetterToIndex(settings.colPrice);
+
+    // Určíme správný sloupec podle typu
+    const colIdx = type === 'labor'
+        ? columnLetterToIndex(settings.colLabor)
+        : columnLetterToIndex(settings.colMaterial);
 
     const priceField = type === 'labor' ? 'price_labor' : 'price_material';
     const price = candidate[priceField] || 0;
 
-    const priceCell = sheet.getRange(row, priceColIdx);
+    const priceCell = sheet.getRange(row, colIdx);
     priceCell.setValue(price);
 
     // Zelená = manuální výběr (100% správně)
     priceCell.setBackground('#d4edda');
 
     // Přidat poznámku
-    const note = `📦 ${candidate.item || 'N/A'}\n` +
+    const icon = type === 'labor' ? '🔧' : '📦';
+    const note = `${icon} ${candidate.item || 'N/A'}\n` +
         `✅ Manuální výběr (100%)\n` +
         `🏢 Zdroj: ${candidate.source || 'N/A'}\n` +
         `📅 Datum: ${candidate.date || 'N/A'}\n` +

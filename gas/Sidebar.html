@@ -285,26 +285,19 @@
         <h2>🚀 Automatické oceňování</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
             <div style="flex: 1;">
-                <label>Popis (Sloupec)</label>
+                <label>Popis</label>
                 <input type="text" id="col-desc" value="C" onchange="saveSettings()">
             </div>
             <div style="flex: 1;">
-                <label>Cena (Sloupec)</label>
-                <input type="text" id="col-price" value="F" onchange="saveSettings()">
+                <label>Materiál</label>
+                <input type="text" id="col-material" value="I" onchange="saveSettings()">
+            </div>
+            <div style="flex: 1;">
+                <label>Práce</label>
+                <input type="text" id="col-labor" value="J" onchange="saveSettings()">
             </div>
         </div>
-        <div class="form-group">
-            <label>Druh cenové hladiny</label>
-            <select id="price-type" onchange="saveSettings()">
-                <option value="material">📦 Materiál (Dodávka)</option>
-                <option value="labor">🔧 Montáž (Práce)</option>
-            </select>
-        </div>
         <button class="btn btn-primary" onclick="runPricing()" id="btn-run">Ocenit označený výběr</button>
-        <button class="btn btn-outline" style="margin-top: 8px; border-color: var(--warning-orange); color: #b07d00;"
-            onclick="openLaborSuggestions()">
-            💡 Najít montáž k položce
-        </button>
     </div>
 
     <!-- History & Analysis -->
@@ -333,8 +326,10 @@
         <h2>⚙️ Nastavení systému</h2>
         <div class="form-group">
             <label>Citlivost shody (Threshold: <span id="val-threshold">40</span>%)</label>
-            <input type="range" id="threshold" min="0" max="100" value="40" step="5" oninput="updateRangeLabel()" onchange="saveSettings()">
-            <p style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Položky se shodou nižší než tato hodnota nebudou oceněny automaticky.</p>
+            <input type="range" id="threshold" min="0" max="100" value="40" step="5" oninput="updateRangeLabel()"
+                onchange="saveSettings()">
+            <p style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Položky se shodou nižší než tato
+                hodnota nebudou oceněny automaticky.</p>
         </div>
 
         <button class="btn btn-danger" onclick="blacklistItem()">
@@ -360,7 +355,7 @@
         let lastCellKey = "";
 
         // On Load
-        window.onload = function() {
+        window.onload = function () {
             initSettings();
             startPolling();
         };
@@ -371,8 +366,8 @@
                 document.getElementById('threshold').value = s.threshold * 100;
                 document.getElementById('val-threshold').innerText = Math.round(s.threshold * 100);
                 document.getElementById('col-desc').value = s.colDesc;
-                document.getElementById('col-price').value = s.colPrice;
-                document.getElementById('price-type').value = s.priceType;
+                document.getElementById('col-material').value = s.colMaterial;
+                document.getElementById('col-labor').value = s.colLabor;
             }).getSettings();
         }
 
@@ -385,16 +380,16 @@
             const settings = {
                 threshold: parseFloat(document.getElementById('threshold').value) / 100,
                 colDesc: document.getElementById('col-desc').value.toUpperCase(),
-                colPrice: document.getElementById('col-price').value.toUpperCase(),
-                priceType: document.getElementById('price-type').value
+                colMaterial: document.getElementById('col-material').value.toUpperCase(),
+                colLabor: document.getElementById('col-labor').value.toUpperCase()
             };
             google.script.run.setSettings(settings);
         }
 
         function runPricing() {
             const desc = document.getElementById('col-desc').value;
-            const price = document.getElementById('col-price').value;
-            const priceType = document.getElementById('price-type').value;
+            const colMaterial = document.getElementById('col-material').value;
+            const colLabor = document.getElementById('col-labor').value;
             const btn = document.getElementById('btn-run');
 
             btn.innerText = "Zpracovávám...";
@@ -410,7 +405,7 @@
                     btn.innerText = "Ocenit označený výběr";
                     btn.disabled = false;
                 })
-                .priceSelection(desc, price, priceType);
+                .priceSelectionDual(desc, colMaterial, colLabor);
         }
 
         // Polling logic for "Menu automatically opened"
@@ -435,7 +430,7 @@
             const panel = document.getElementById('selection-panel');
             const container = document.getElementById('candidates-container');
             const targetInfo = document.getElementById('target-info');
-            
+
             targetInfo.innerText = "Položka: " + ctx.description;
             container.innerHTML = "";
             panel.style.display = 'block';
@@ -443,7 +438,7 @@
             ctx.candidates.forEach(cand => {
                 const item = document.createElement('div');
                 item.className = 'candidate-item';
-                
+
                 const priceField = ctx.type === 'labor' ? 'price_labor' : 'price_material';
                 const price = (cand[priceField] || 0).toLocaleString('cs-CZ');
                 const score = Math.round((cand.match_score || 0) * 100);
@@ -459,20 +454,18 @@
                         <span>📅 ${cand.date || '---'}</span>
                     </div>
                 `;
-                
+
                 item.onclick = () => {
                     google.script.run.applyCandidate(ctx.row, cand, ctx.type);
                     panel.style.display = 'none';
                     lastCellKey = "";
                 };
-                
+
                 container.appendChild(item);
             });
         }
 
-        function openLaborSuggestions() {
-            google.script.run.openLaborSuggestions();
-        }
+
 
         function loadFromCell() {
             google.script.run.withSuccessHandler((value) => {

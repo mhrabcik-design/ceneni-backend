@@ -25,29 +25,26 @@ Po nahrání uložte (Ctrl+S) a obnovte kartu s tabulkou (F5). V horním menu se
 
 Panel otevřete přes menu: **🤖 AI Asistent -> Otevřít panel**.
 
-### Oceňování položek
-1.  Označte v tabulce buňky s popisy položek, které chcete ocenit.
-2.  V panelu zvolte, zda hledáte **Materiál** (Dodávka) nebo **Montáž**.
-3.  Klikněte na **🚀 Ocenit výběr**.
-4.  **Výsledek:**
-    *   Do buněk se doplní nejlepší nalezená cena.
+### Oceňování položek (3-sloupcový systém)
+Systém nyní pracuje se třemi sloupci:
+- **Sloupec C (Popis):** Text položky k ocenění
+- **Sloupec I (Materiál):** Cena materiálu z dodavatelských nabídek
+- **Sloupec J (Práce):** Cena montáže z interních rozpočtů
+
+1.  Označte v tabulce buňky s popisy položek.
+2.  Klikněte na **🚀 Ocenit označený výběr**.
+3.  **Výsledek:** Oba sloupce (I + J) se vyplní najednou.
+4.  **Barevná legenda:**
     *   **Zelené pozadí:** Manuální výběr z menu – 100% potvrzeno.
     *   **Oranžové pozadí:** Shoda je nižší než 60 % (zkontrolujte položku).
     *   **Bez pozadí:** Automatická shoda nad 60% (OK).
     *   **Poznámka u buňky:** Obsahuje název z DB, % shody, zdroj a datum ceny.
 
-### 🎯 Menu kandidátů (nová funkce)
-Pokud systém najde položku s nízkou shodou (pod threshold):
-1.  Klikněte na buňku s oranžovým pozadím.
-2.  V sidebaru se automaticky zobrazí **Top kandidáti** s názvy, cenami a zdroji.
-3.  Vyberte správnou položku jedním klikem.
-4.  Buňka se **zazelení** (manuální výběr = 100% správně).
-
-### 💡 Chytré návrhy montáže (Labor Suggestion)
-1. Označte buňku s materiálem, který jste právě ocenili (nebo má vyplněnou poznámku).
-2. V panelu klikněte na **💡 Najít montáž k položce**.
-3. Otevře se okno, kde AI navrhne nejvhodnější montážní práce z vašeho interního katalogu.
-4. Klikněte na **PŘIDAT** a systém automaticky vloží nový řádek s montáží přímo pod váš materiál.
+### 🎯 Menu kandidátů (kontextové nabídky)
+Pokud kliknete na buňku ve sloupci Materiál (I) nebo Práce (J):
+1.  V sidebaru se automaticky zobrazí **Top kandidáti** pro daný typ.
+2.  Vyberte správnou položku jedním klikem.
+3.  Buňka se **zazelení** (manuální výběr = 100% správně).
 
 ### Historie a grafy
 *   Klikněte na jakoukoliv oceněnou buňku.

@@ -47,7 +47,9 @@ We treat data sources differently based on their origin:
 ### Frontend (Google Sheets Sidebar)
 - **Tech:** Apps Script + HTML/JS + Chart.js.
 - **Features:**
-    - Material/Montáž dropdown selection
+    - 3-column pricing: Popis (C), Materiál (I), Práce (J)
+    - One-click dual pricing (Material + Labor simultaneously)
+    - Context-aware candidate suggestions
     - Price History Graph
     - Cell notes with original name + match score
     - Feedback system (blacklist + custom prices)
