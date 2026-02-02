@@ -554,27 +554,30 @@
 
         function renderChart(itemName, historyData) {
             document.getElementById('chart-container').style.display = 'block';
-            document.getElementById('chart-title').innerText = itemName;
+            document.getElementById('chart-title').innerText = itemName + ' (Materiál)';
             const ctx = document.getElementById('priceChart').getContext('2d');
 
-            // Table
-            let tableHtml = '<table class="comp-table"><tr><th>Zdroj</th><th>Datum</th><th>Cena</th></tr>';
-            const sortedTable = [...historyData].sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Filter only entries with material price > 0
+            const materialData = historyData.filter(row => row.price_material > 0);
+
+            // Table - only material prices
+            let tableHtml = '<table class="comp-table"><tr><th>Zdroj</th><th>Datum</th><th>Cena Mat.</th></tr>';
+            const sortedTable = [...materialData].sort((a, b) => new Date(b.date) - new Date(a.date));
             sortedTable.forEach(row => {
-                const total = (row.price_material + row.price_labor).toLocaleString('cs-CZ');
-                tableHtml += `<tr><td>${row.vendor || 'Interní'}</td><td>${row.date || '---'}</td><td style="font-weight:600;color:var(--google-blue)">${total}</td></tr>`;
+                const price = row.price_material.toLocaleString('cs-CZ');
+                tableHtml += `<tr><td>${row.vendor || 'Interní'}</td><td>${row.date || '---'}</td><td style="font-weight:600;color:var(--google-blue)">${price} Kč</td></tr>`;
             });
             document.getElementById('comparison-table').innerHTML = tableHtml + '</table>';
 
-            // Chart
-            const sortedChart = [...historyData].sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Chart - only material prices
+            const sortedChart = [...materialData].sort((a, b) => new Date(a.date) - new Date(b.date));
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: sortedChart.map(d => d.date),
                     datasets: [{
-                        data: sortedChart.map(d => d.price_material + d.price_labor),
+                        data: sortedChart.map(d => d.price_material),
                         borderColor: '#1a73e8',
                         backgroundColor: 'rgba(26, 115, 232, 0.1)',
                         fill: true,
