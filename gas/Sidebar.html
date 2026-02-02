@@ -298,6 +298,9 @@
             </div>
         </div>
         <button class="btn btn-primary" onclick="runPricing()" id="btn-run">Ocenit označený výběr</button>
+        <button class="btn btn-outline" style="margin-top: 8px;" onclick="showCandidatesManual()" id="btn-candidates">
+            🔍 Zobrazit kandidáty pro buňku
+        </button>
     </div>
 
     <!-- History & Analysis -->
@@ -407,6 +410,31 @@
                 })
                 .priceSelectionDual(desc, colMaterial, colLabor);
         }
+
+        function showCandidatesManual() {
+            const btn = document.getElementById('btn-candidates');
+            btn.innerText = "Hledám...";
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler((ctx) => {
+                    btn.innerText = "🔍 Zobrazit kandidáty pro buňku";
+                    btn.disabled = false;
+
+                    if (ctx && ctx.candidates && ctx.candidates.length > 0) {
+                        showCandidates(ctx);
+                    } else {
+                        alert("Pro tuto buňku nebyly nalezeny žádné kandidáty.\n\nUjistěte se, že:\n- Stojíte ve sloupci Materiál (I) nebo Práce (J)\n- Ve sloupci Popis (C) je text k vyhledání");
+                    }
+                })
+                .withFailureHandler((err) => {
+                    btn.innerText = "🔍 Zobrazit kandidáty pro buňku";
+                    btn.disabled = false;
+                    alert("Chyba: " + err);
+                })
+                .getActiveCellContext();
+        }
+
 
         // Polling logic for "Menu automatically opened"
         function startPolling() {
