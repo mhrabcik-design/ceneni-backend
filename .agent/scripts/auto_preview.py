@@ -17,7 +17,12 @@ import json
 import signal
 import argparse
 import subprocess
+import io
 from pathlib import Path
+
+# Force UTF-8 for Windows terminal support
+if sys.platform == 'win32' and sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 AGENT_DIR = Path(".agent")
 PID_FILE = AGENT_DIR / "preview.pid"
@@ -122,7 +127,7 @@ def status_server():
             
     print("\n=== Preview Status ===")
     if running:
-        print(f"✅ Status: Running")
+        print(f"🟢 Status: Running")
         print(f"🔢 PID: {pid}")
         print(f"🌐 URL: {url} (Likely)")
         print(f"📝 Logs: {LOG_FILE}")

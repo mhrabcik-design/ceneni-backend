@@ -34,6 +34,7 @@ class ItemSearchResponse(BaseModel):
 class MatchRequest(BaseModel):
     items: List[str]
     type: Optional[str] = "material"  # "material" or "labor"
+    threshold: Optional[float] = 0.4
 
 @app.post("/match")
 def match_items(req: MatchRequest):
@@ -46,18 +47,27 @@ def match_items(req: MatchRequest):
     source_filter = ['INTERNAL', 'ADMIN'] if req.type == 'labor' else ['SUPPLIER', 'ADMIN']
 
     for item in req.items:
-        # Use fuzzy search from DB with source filtering
-        matches = manager.db.search(item, limit=1, source_type_filter=source_filter)
+        # Use fuzzy search from DB with source filtering - get more candidates now
+        matches = manager.db.search(item, limit=10, source_type_filter=source_filter)
         if matches:
             best = matches[0]
+            best_score = best.get('match_score', 0)
+            
+            # If best match is below threshold, provide all matches as candidates
+            candidates = []
+            if best_score < req.threshold:
+                # Take top 5 candidates
+                candidates = matches[:5]
+            
             results[item] = {
-                "price": best.get(price_field, 0),
+                "price": best.get(price_field, 0) if best_score >= req.threshold else None,
                 "unit": best.get('unit', 'ks'),
                 "source": best.get('source'),
                 "date": str(best.get('date')),
                 "item_id": best.get('id'),
                 "original_name": best.get('item'),
-                "match_score": best.get('match_score', 0)
+                "match_score": best_score,
+                "candidates": candidates if best_score < req.threshold else []
             }
     return results
 

@@ -5,6 +5,31 @@
 
 const API_BASE_URL = "https://ceneni-backend.onrender.com"; // Cloud Backend (Render + Supabase)
 
+/**
+ * Získá nastavení uživatele (sloupce, threshold)
+ */
+function getSettings() {
+    const props = PropertiesService.getUserProperties();
+    return {
+        threshold: parseFloat(props.getProperty('threshold') || '0.4'),
+        colDesc: props.getProperty('colDesc') || 'C',
+        colPrice: props.getProperty('colPrice') || 'F',
+        priceType: props.getProperty('priceType') || 'material'
+    };
+}
+
+/**
+ * Uloží nastavení uživatele
+ */
+function setSettings(settings) {
+    const props = PropertiesService.getUserProperties();
+    props.setProperty('threshold', settings.threshold.toString());
+    props.setProperty('colDesc', settings.colDesc);
+    props.setProperty('colPrice', settings.colPrice);
+    props.setProperty('priceType', settings.priceType);
+    return true;
+}
+
 function onOpen() {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('🤖 AI Asistent')
@@ -141,7 +166,8 @@ function priceSelection(descColLetter, priceColLetter, priceType) {
 
         if (!description || String(description).length < 3) continue;
 
-        const match = fetchMatch(description, priceType || 'material');
+        const settings = getSettings();
+        const match = fetchMatch(description, priceType || settings.priceType, settings.threshold);
         if (match) {
             const priceCell = sheet.getRange(currentRow, priceCol);
             priceCell.setValue(match.price || 0);
@@ -184,7 +210,8 @@ function columnLetterToIndex(letter) {
  * @param {string} description - Popis položky
  * @param {string} priceType - 'material' nebo 'labor'
  */
-function fetchMatch(description, priceType) {
+function fetchMatch(description, priceType, threshold) {
+    const settings = getSettings();
     const url = `${API_BASE_URL}/match`;
     const options = {
         'method': 'post',
@@ -192,7 +219,8 @@ function fetchMatch(description, priceType) {
         'headers': { 'bypass-tunnel-reminder': 'true' },
         'payload': JSON.stringify({
             'items': [description],
-            'type': priceType || 'material'
+            'type': priceType || settings.priceType,
+            'threshold': threshold || settings.threshold
         }),
         'muteHttpExceptions': true
     };
@@ -207,6 +235,66 @@ function fetchMatch(description, priceType) {
         Logger.log("Chyba při volání API: " + e.message);
     }
     return null;
+}
+
+/**
+ * Získá kandidáty pro aktuálně vybranou buňku (pokud je v cenovém sloupci a prázdná)
+ */
+function getActiveCellContext() {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const cell = sheet.getActiveCell();
+    const settings = getSettings();
+
+    // Převedeme písmeno sloupce na index
+    const priceColIdx = columnLetterToIndex(settings.colPrice);
+    const descColIdx = columnLetterToIndex(settings.colDesc);
+
+    // Pouze pokud jsme ve sloupci s cenou
+    if (cell.getColumn() !== priceColIdx) return null;
+
+    const row = cell.getRow();
+    const description = sheet.getRange(row, descColIdx).getValue();
+    const currentPrice = cell.getValue();
+
+    if (!description || description.toString().length < 3) return null;
+
+    // Pokud je buňka prázdná, najdeme kandidáty
+    if (!currentPrice || currentPrice === "") {
+        const match = fetchMatch(description, settings.priceType, settings.threshold);
+        if (match && match.candidates && match.candidates.length > 0) {
+            return {
+                row: row,
+                description: description,
+                candidates: match.candidates,
+                type: settings.priceType
+            };
+        }
+    }
+    return null;
+}
+
+/**
+ * Aplikuje vybraného kandidáta na konkrétní řádek
+ */
+function applyCandidate(row, candidate, type) {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const settings = getSettings();
+    const priceColIdx = columnLetterToIndex(settings.colPrice);
+
+    const priceField = type === 'labor' ? 'price_labor' : 'price_material';
+    const price = candidate[priceField] || 0;
+
+    const priceCell = sheet.getRange(row, priceColIdx);
+    priceCell.setValue(price);
+
+    // Přidat poznámku
+    const note = `📦 ${candidate.item || 'N/A'}\n` +
+        `📊 Ruční výběr (Shoda: ${Math.round((candidate.match_score || 0) * 100)}%)\n` +
+        `🏢 Zdroj: ${candidate.source || 'N/A'}\n` +
+        `📅 Datum: ${candidate.date || 'N/A'}\n` +
+        `🔗 ID: ${candidate.id || 'N/A'}`;
+    priceCell.setNote(note);
+    return true;
 }
 
 /**

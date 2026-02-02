@@ -65,6 +65,7 @@
             border-radius: 8px;
             padding: 16px;
             box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+            position: relative;
         }
 
         h2 {
@@ -161,6 +162,55 @@
             cursor: not-allowed;
         }
 
+        /* Candidates List */
+        .candidates-list {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .candidate-item {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .candidate-item:hover {
+            border-color: var(--google-blue);
+            background: #f8fbff;
+            transform: translateY(-1px);
+        }
+
+        .candidate-name {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .candidate-meta {
+            font-size: 10px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .candidate-source {
+            color: var(--google-blue);
+            font-weight: 500;
+        }
+
+        .candidate-score {
+            background: #e8f0fe;
+            padding: 2px 6px;
+            border-radius: 10px;
+            color: var(--google-blue);
+        }
+
         /* Chart & Table */
         .results-container {
             margin-top: 16px;
@@ -221,22 +271,31 @@
         <span id="status-text">Zjišťování stavu...</span>
     </div>
 
+    <!-- Selection Helper (Automatic Menu) -->
+    <div id="selection-panel" class="section-card" style="display: none; border-left: 4px solid var(--warning-orange);">
+        <h2 style="color: var(--warning-orange);">💡 Návrhy pro váš výběr</h2>
+        <div id="target-info" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;"></div>
+        <div id="candidates-container" class="candidates-list">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
     <!-- Main Pricing -->
     <div class="section-card">
         <h2>🚀 Automatické oceňování</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
             <div style="flex: 1;">
                 <label>Popis (Sloupec)</label>
-                <input type="text" id="col-desc" value="C">
+                <input type="text" id="col-desc" value="C" onchange="saveSettings()">
             </div>
             <div style="flex: 1;">
                 <label>Cena (Sloupec)</label>
-                <input type="text" id="col-price" value="F">
+                <input type="text" id="col-price" value="F" onchange="saveSettings()">
             </div>
         </div>
         <div class="form-group">
             <label>Druh cenové hladiny</label>
-            <select id="price-type">
+            <select id="price-type" onchange="saveSettings()">
                 <option value="material">📦 Materiál (Dodávka)</option>
                 <option value="labor">🔧 Montáž (Práce)</option>
             </select>
@@ -269,9 +328,15 @@
         </div>
     </div>
 
-    <!-- Feedback & Tools -->
+    <!-- Settings & Tools -->
     <div class="section-card">
-        <h2>⚙️ Nástroje a správa</h2>
+        <h2>⚙️ Nastavení systému</h2>
+        <div class="form-group">
+            <label>Citlivost shody (Threshold: <span id="val-threshold">40</span>%)</label>
+            <input type="range" id="threshold" min="0" max="100" value="40" step="5" oninput="updateRangeLabel()" onchange="saveSettings()">
+            <p style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">Položky se shodou nižší než tato hodnota nebudou oceněny automaticky.</p>
+        </div>
+
         <button class="btn btn-danger" onclick="blacklistItem()">
             Odstranit položku z databáze
         </button>
@@ -292,6 +357,39 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let myChart = null;
+        let lastCellKey = "";
+
+        // On Load
+        window.onload = function() {
+            initSettings();
+            startPolling();
+        };
+
+        function initSettings() {
+            google.script.run.withSuccessHandler((s) => {
+                if (!s) return;
+                document.getElementById('threshold').value = s.threshold * 100;
+                document.getElementById('val-threshold').innerText = Math.round(s.threshold * 100);
+                document.getElementById('col-desc').value = s.colDesc;
+                document.getElementById('col-price').value = s.colPrice;
+                document.getElementById('price-type').value = s.priceType;
+            }).getSettings();
+        }
+
+        function updateRangeLabel() {
+            const val = document.getElementById('threshold').value;
+            document.getElementById('val-threshold').innerText = val;
+        }
+
+        function saveSettings() {
+            const settings = {
+                threshold: parseFloat(document.getElementById('threshold').value) / 100,
+                colDesc: document.getElementById('col-desc').value.toUpperCase(),
+                colPrice: document.getElementById('col-price').value.toUpperCase(),
+                priceType: document.getElementById('price-type').value
+            };
+            google.script.run.setSettings(settings);
+        }
 
         function runPricing() {
             const desc = document.getElementById('col-desc').value;
@@ -313,6 +411,63 @@
                     btn.disabled = false;
                 })
                 .priceSelection(desc, price, priceType);
+        }
+
+        // Polling logic for "Menu automatically opened"
+        function startPolling() {
+            setInterval(() => {
+                google.script.run.withSuccessHandler((ctx) => {
+                    if (ctx) {
+                        const cellKey = ctx.row + "_" + ctx.description;
+                        if (cellKey !== lastCellKey) {
+                            lastCellKey = cellKey;
+                            showCandidates(ctx);
+                        }
+                    } else {
+                        document.getElementById('selection-panel').style.display = 'none';
+                        lastCellKey = "";
+                    }
+                }).getActiveCellContext();
+            }, 1500);
+        }
+
+        function showCandidates(ctx) {
+            const panel = document.getElementById('selection-panel');
+            const container = document.getElementById('candidates-container');
+            const targetInfo = document.getElementById('target-info');
+            
+            targetInfo.innerText = "Položka: " + ctx.description;
+            container.innerHTML = "";
+            panel.style.display = 'block';
+
+            ctx.candidates.forEach(cand => {
+                const item = document.createElement('div');
+                item.className = 'candidate-item';
+                
+                const priceField = ctx.type === 'labor' ? 'price_labor' : 'price_material';
+                const price = (cand[priceField] || 0).toLocaleString('cs-CZ');
+                const score = Math.round((cand.match_score || 0) * 100);
+
+                item.innerHTML = `
+                    <span class="candidate-name">${cand.item}</span>
+                    <div class="candidate-meta">
+                        <span>Cena: <b>${price} Kč</b></span>
+                        <span class="candidate-score">${score}%</span>
+                    </div>
+                    <div class="candidate-meta" style="margin-top:4px;">
+                        <span class="candidate-source">📄 ${cand.source}</span>
+                        <span>📅 ${cand.date || '---'}</span>
+                    </div>
+                `;
+                
+                item.onclick = () => {
+                    google.script.run.applyCandidate(ctx.row, cand, ctx.type);
+                    panel.style.display = 'none';
+                    lastCellKey = "";
+                };
+                
+                container.appendChild(item);
+            });
         }
 
         function openLaborSuggestions() {

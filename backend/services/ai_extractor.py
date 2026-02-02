@@ -42,6 +42,7 @@ PRAVIDLA:
 3. price_labor = cena práce BEZ DPH (Montáž A).
 4. Ignoruj řádky, které jsou jen součty kapitol nebo celkové součty (Celkem, Součet, DPH).
 5. EXTRAHUJ KAŽDÝ ŘÁDEK, KTERÝ MÁ JEDNOTKOVOU CENU.
+6. SPOJUJ VÍCEŘÁDKOVÉ POPISY: Pokud je název položky rozdělen do více řádků (často první řádek je kód a druhý text), spoj je do jednoho 'raw_name'.
 
 SOUBOR: {filename}
 OBSAH:
@@ -52,7 +53,7 @@ ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM:"""
             prompt = f"""Jsi Data Extractor pro nabídky dodavatelů stavebního materiálu.
 
 ÚKOL: Extrahuj ÚPLNĚ VŠECHNY položky s cenami z nabídky. Hledej tabulky s položkami.
-Nesmíš žádnou položku vynechat ani seskupovat!
+Nesmíš žádnou položku vynechat! Nesdružuj různé položky, ale VŽDY spoj víceřádkový popis jedné položky do jednoho názvu.
 
 VÝSTUP - POUZE PLATNÝ JSON (nic jiného, žádný text před ani za!):
 {{
@@ -65,21 +66,23 @@ VÝSTUP - POUZE PLATNÝ JSON (nic jiného, žádný text před ani za!):
 }}
 
 PRAVIDLA:
-1. raw_name = PŘESNÝ text popisu z dokumentu (např. "Krabice KO 68 pod omítku").
+1. raw_name = PŘESNÝ a KOMPLETNÍ text popisu z dokumentu (např. "Krabice KO 68 pod omítku").
 2. price_material = jednotková cena BEZ DPH (hledej sloupec "cena MJ bez DPH" nebo "po slevě bez DPH").
 3. price_labor = obvykle 0 pro dodavatelské nabídky.
 4. unit = měrná jednotka (ks, m, m2, kpl, sada...).
 5. quantity = množství.
 6. offer_number = najdi číslo nabídky/zakázky (např. "Nabídka č. 202401").
 7. IGNORUJ řádky: Celkem, Součet, DPH, Základ daně, Mezisoučet, Total, Recyklační.
-8. IGNORUJ řádky bez jednotkové ceny (hlavičky kapitol).
+8. IGNORUJ řádky, které jsou očividně jen hlavičky nebo patičky stran a neobsahují data o položkách.
 9. Extrahuj i krabice, svorky, trubky, kabely - VŠECHNY položky!
+10. DŮLEŽITÉ: Pokud je popis jedné položky rozdělen do více řádků (např. kód na prvním a název na druhém), MUSÍŠ je spojit do jednoho 'raw_name', aby vznikl srozumitelný název pro vyhledávání.
 
 SOUBOR: {filename}
 OBSAH:
 {text_content[:200000]}
 
 ODPOVĚZ POUZE PLATNÝM JSON OBJEKTEM (začni {{ a skonči }}):"""
+
 
         try:
             response = self.model.generate_content(prompt)

@@ -1,5 +1,6 @@
 import os
 import difflib
+import re
 from datetime import datetime
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, Date, DateTime, ForeignKey, func, select, or_, text
 
@@ -202,8 +203,12 @@ class PriceDatabase:
             # 2. Add Items & Prices
             # Prepare data
             for it in items:
-                name = it.get('raw_name') or it.get('item')
+                raw_extracted_name = it.get('raw_name') or it.get('item')
+                if not raw_extracted_name: continue
+                
+                name = self._clean_item_name(raw_extracted_name)
                 if not name: continue
+                
                 norm_name = name.lower().strip()
                 
                 # Check Item
@@ -530,3 +535,28 @@ class PriceDatabase:
             
             scored.sort(key=lambda x: x[0], reverse=True)
             return [x[1] for x in scored[:limit]]
+
+    def _clean_item_name(self, name):
+        """
+        Cleans up common noise from PDF/Excel extractions:
+        - Removes line breaks, tabs, excessive spaces
+        - Removes sequential IDs (1., a), 10., etc.)
+        - Removes bullet points
+        """
+        if not name: return ""
+        
+        # 1. Remove line breaks and tabs
+        name = name.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+        
+        # 2. Remove sequential IDs at the beginning (e.g., "1. ", "a) ", "10) ")
+        # We use [.\)] to ensure it's an ID and not part of a code like 1-CYKY
+        name = re.sub(r'^\s*\d+[\.\)]\s*', '', name)
+        name = re.sub(r'^\s*[a-zA-Z][\.\)]\s*', '', name)
+        
+        # 3. Remove bullet points
+        name = re.sub(r'^\s*[•\-\*]\s*', '', name)
+        
+        # 4. Remove excessive spaces
+        name = re.sub(r'\s+', ' ', name).strip()
+        
+        return name
