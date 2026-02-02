@@ -42,9 +42,27 @@ function onOpen() {
         .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
         .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
         .addItem('🗑️ Správa: SMAZAT VÝBĚR', 'deleteSelectedAdminItems')
+        .addItem('🧹 Správa: Vymazat cache', 'clearMatchCache')
         .addSeparator()
         .addItem('🧨 RESET CELÉ DATABÁZE', 'resetDatabaseWithConfirmation')
         .addToUi();
+}
+
+/**
+ * Vymaže cache sheet pro nový start
+ */
+function clearMatchCache() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const cacheSheet = ss.getSheetByName('MATCH_CACHE');
+    if (cacheSheet) {
+        const lastRow = cacheSheet.getLastRow();
+        if (lastRow > 1) {
+            cacheSheet.deleteRows(2, lastRow - 1);
+        }
+        SpreadsheetApp.getUi().alert('Cache byla vymazána. Následující vyhledávání budou čerstvá z API.');
+    } else {
+        SpreadsheetApp.getUi().alert('Cache neexistuje.');
+    }
 }
 
 function showSidebar() {
@@ -235,12 +253,84 @@ function columnLetterToIndex(letter) {
 }
 
 /**
- * Volání backendu pro získání ceny
+ * Získá nebo vytvoří hidden sheet pro cache
+ */
+function getOrCreateCacheSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let cacheSheet = ss.getSheetByName('MATCH_CACHE');
+    if (!cacheSheet) {
+        cacheSheet = ss.insertSheet('MATCH_CACHE');
+        cacheSheet.hideSheet();
+        // Header row: search_key, type, item_name, price, source, date, match_score, item_id, cached_at
+        cacheSheet.getRange(1, 1, 1, 9).setValues([
+            ['search_key', 'type', 'item_name', 'price', 'source', 'date', 'match_score', 'item_id', 'cached_at']
+        ]);
+    }
+    return cacheSheet;
+}
+
+/**
+ * Najde položku v cache sheetu
+ */
+function findInCache(searchKey, priceType) {
+    const cacheSheet = getOrCreateCacheSheet();
+    const data = cacheSheet.getDataRange().getValues();
+    const normalizedKey = searchKey.toLowerCase().trim();
+
+    for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === normalizedKey && data[i][1] === priceType) {
+            return {
+                original_name: data[i][2],
+                price: data[i][3],
+                source: data[i][4],
+                date: data[i][5],
+                match_score: data[i][6],
+                item_id: data[i][7],
+                from_cache: true
+            };
+        }
+    }
+    return null;
+}
+
+/**
+ * Uloží výsledek matche do cache
+ */
+function saveToCache(searchKey, priceType, matchResult) {
+    if (!matchResult) return;
+    const cacheSheet = getOrCreateCacheSheet();
+    const normalizedKey = searchKey.toLowerCase().trim();
+
+    cacheSheet.appendRow([
+        normalizedKey,
+        priceType,
+        matchResult.original_name || '',
+        matchResult.price || 0,
+        matchResult.source || '',
+        matchResult.date || '',
+        matchResult.match_score || 0,
+        matchResult.item_id || '',
+        new Date().toISOString()
+    ]);
+}
+
+/**
+ * Volání backendu pro získání ceny - S CACHE!
  * @param {string} description - Popis položky
  * @param {string} priceType - 'material' nebo 'labor'
  */
 function fetchMatch(description, priceType, threshold) {
     const settings = getSettings();
+
+    // L1: Check local cache first (instant)
+    const cached = findInCache(description, priceType);
+    if (cached) {
+        Logger.log("Cache HIT: " + description);
+        return cached;
+    }
+
+    // L2: Fall back to API
+    Logger.log("Cache MISS, calling API: " + description);
     const url = `${API_BASE_URL}/match`;
     const options = {
         'method': 'post',
@@ -248,7 +338,7 @@ function fetchMatch(description, priceType, threshold) {
         'headers': { 'bypass-tunnel-reminder': 'true' },
         'payload': JSON.stringify({
             'items': [description],
-            'type': priceType || settings.priceType,
+            'type': priceType,
             'threshold': threshold || settings.threshold
         }),
         'muteHttpExceptions': true
@@ -258,7 +348,14 @@ function fetchMatch(description, priceType, threshold) {
         const response = UrlFetchApp.fetch(url, options);
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
-            return data[description] || null;
+            const result = data[description] || null;
+
+            // Save to cache for next time
+            if (result) {
+                saveToCache(description, priceType, result);
+            }
+
+            return result;
         }
     } catch (e) {
         Logger.log("Chyba při volání API: " + e.message);
