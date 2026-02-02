@@ -19,3 +19,31 @@ Při práci s rozsáhlými PDF nabídkami (desítky stran) může být obtížn�
 ### Výhody
 - Názvy položek zůstanou čisté a snadno vyhledatelné.
 - Uživatel získá přesnou navigaci do zdrojového PDF souboru.
+
+---
+
+## 2. Aliasový systém pro učení z manuálních výběrů
+
+### Motivace
+Když uživatel manuálně vybere kandidáta v sidebaru (např. popis "Odbočná krabice plastová" → položka DB "Krabice KO 68"), systém by si toto spojení měl "zapamatovat" a příště nabídnout správnou položku automaticky s vyšší prioritou.
+
+### Aktuální stav
+- Manuální výběr se zapíše do buňky, ale systém se z něj neučí.
+- Fuzzy matching se spoléhá pouze na podobnost textů.
+
+### Návrh řešení (doporučená varianta: Aliasová tabulka)
+1. **Databáze**: Nová tabulka `item_aliases`:
+   ```
+   id | item_id | alias_text | created_at
+   1  | 42      | "odbočná krabice plastová" | 2026-02-02
+   ```
+2. **Backend**: Při volání `/match` nejdříve hledat exact match v aliasech, pak teprve fuzzy.
+3. **GAS**: Funkce `applyCandidate()` odešle alias na backend: `POST /items/{id}/alias`.
+
+### Výhody
+- Systém se učí z každého manuálního výběru.
+- Okamžité zlepšení budoucích návrhů.
+- Transparentní – aliasy lze prohlížet a mazat.
+
+### Odhadovaná náročnost
+**Medium** (1-2 hodiny): Migrace DB, nový endpoint, úprava matchingové logiky.
