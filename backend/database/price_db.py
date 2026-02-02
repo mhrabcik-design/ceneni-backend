@@ -116,6 +116,7 @@ class PriceDatabase:
     def add_custom_item(self, name, price_material, price_labor, unit):
         """Add a user-defined item with custom price."""
         with self.engine.connect() as conn:
+            name = self._clean_item_name(name)
             norm_name = name.lower().strip()
             
             # Check if item already exists
@@ -448,6 +449,7 @@ class PriceDatabase:
 
                 if item_id:
                     # Update Item Name
+                    name = self._clean_item_name(name)
                     conn.execute(self.items.update().where(self.items.c.id == item_id).values(
                         name=name, normalized_name=name.lower().strip()
                     ))
@@ -548,10 +550,11 @@ class PriceDatabase:
         # 1. Remove line breaks and tabs
         name = name.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
         
-        # 2. Remove sequential IDs at the beginning (e.g., "1. ", "a) ", "10) ")
-        # We use [.\)] to ensure it's an ID and not part of a code like 1-CYKY
-        name = re.sub(r'^\s*\d+[\.\)]\s*', '', name)
-        name = re.sub(r'^\s*[a-zA-Z][\.\)]\s*', '', name)
+        # 2. Remove sequential IDs at the beginning
+        # Pattern A: "1. ", "1.1. ", "a) ", "10) " - with dot or bracket
+        name = re.sub(r'^\s*[0-9a-zA-Z]+(\.[0-9a-zA-Z]+)*[.\)]\s*', '', name)
+        # Pattern B: "29 ", "100 " - bare number followed by space at start (common in supplier offers)
+        name = re.sub(r'^\s*\d{1,3}\s+', '', name)
         
         # 3. Remove bullet points
         name = re.sub(r'^\s*[•\-\*]\s*', '', name)
