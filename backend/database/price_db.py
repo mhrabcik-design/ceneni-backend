@@ -119,6 +119,14 @@ class PriceDatabase:
             name = self._clean_item_name(name)
             norm_name = name.lower().strip()
             
+            # Determine source_type based on which prices are filled (Iron Curtain logic)
+            if price_material > 0 and price_labor == 0:
+                source_type = 'SUPPLIER'  # Material only -> treated as supplier data
+            elif price_labor > 0 and price_material == 0:
+                source_type = 'INTERNAL'  # Labor only -> treated as internal budget
+            else:
+                source_type = 'ADMIN'  # Both or neither -> admin entry
+            
             # Check if item already exists
             existing = conn.execute(select(self.items.c.id).where(self.items.c.name == name)).scalar()
             if existing:
@@ -128,8 +136,8 @@ class PriceDatabase:
                 result = conn.execute(self.items.insert().values(name=name, normalized_name=norm_name))
                 item_id = result.inserted_primary_key[0]
             
-            # Get or create "User Input" source
-            source_name = "user_input"
+            # Get or create source with appropriate type
+            source_name = f"user_input_{source_type.lower()}"
             source_id = conn.execute(select(self.sources.c.id).where(self.sources.c.filename == source_name)).scalar()
             if not source_id:
                 from datetime import date
@@ -137,7 +145,7 @@ class PriceDatabase:
                     filename=source_name,
                     vendor="Uživatel",
                     date_offer=date.today(),
-                    source_type='ADMIN'
+                    source_type=source_type
                 ))
                 source_id = result.inserted_primary_key[0]
             
