@@ -446,11 +446,12 @@ class PriceDatabase:
                 ))
                 source_id = result.inserted_primary_key[0]
 
+            changes_count = 0
             for it in items_data:
                 item_id = it.get('id')
                 name = it.get('name')
-                price_mat = float(it.get('price_material', 0))
-                price_lab = float(it.get('price_labor', 0))
+                price_mat = float(it.get('price_material', 0) or 0)
+                price_lab = float(it.get('price_labor', 0) or 0)
                 unit = it.get('unit', 'ks')
 
                 if not name: continue
@@ -462,9 +463,7 @@ class PriceDatabase:
                         name=name, normalized_name=name.lower().strip()
                     ))
                     
-                    # Update/Add Price
-                    # To keep history, we always insert a new record IF prices changed
-                    # Or just update if it's from user_input source
+                    # Check if prices actually changed (with tolerance for floats)
                     existing_latest = conn.execute(
                         select(self.prices.c.price_material, self.prices.c.price_labor, self.prices.c.unit)
                         .where(self.prices.c.item_id == item_id)
@@ -472,9 +471,13 @@ class PriceDatabase:
                         .limit(1)
                     ).fetchone()
 
+                    # Compare with tolerance (0.01) to avoid float precision issues
+                    def floats_equal(a, b, tol=0.01):
+                        return abs((a or 0) - (b or 0)) < tol
+
                     if not existing_latest or (
-                        existing_latest.price_material != price_mat or 
-                        existing_latest.price_labor != price_lab or 
+                        not floats_equal(existing_latest.price_material, price_mat) or 
+                        not floats_equal(existing_latest.price_labor, price_lab) or 
                         existing_latest.unit != unit
                     ):
                         conn.execute(self.prices.insert().values(
@@ -485,12 +488,14 @@ class PriceDatabase:
                             unit=unit,
                             quantity=1.0
                         ))
+                        changes_count += 1
                 else:
-                    # New Item? (Usually admin won't create items without ID, but for robustness)
+                    # New Item
                     self.add_custom_item(name, price_mat, price_lab, unit)
+                    changes_count += 1
             
             conn.commit()
-            return True
+            return changes_count
 
     # Legacy V1 search support
     def search(self, query, limit=20, source_type_filter=None):
