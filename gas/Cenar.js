@@ -42,27 +42,9 @@ function onOpen() {
         .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
         .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
         .addItem('🗑️ Správa: SMAZAT VÝBĚR', 'deleteSelectedAdminItems')
-        .addItem('🧹 Správa: Vymazat cache', 'clearMatchCache')
         .addSeparator()
         .addItem('🧨 RESET CELÉ DATABÁZE', 'resetDatabaseWithConfirmation')
         .addToUi();
-}
-
-/**
- * Vymaže cache sheet pro nový start
- */
-function clearMatchCache() {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const cacheSheet = ss.getSheetByName('MATCH_CACHE');
-    if (cacheSheet) {
-        const lastRow = cacheSheet.getLastRow();
-        if (lastRow > 1) {
-            cacheSheet.deleteRows(2, lastRow - 1);
-        }
-        SpreadsheetApp.getUi().alert('Cache byla vymazána. Následující vyhledávání budou čerstvá z API.');
-    } else {
-        SpreadsheetApp.getUi().alert('Cache neexistuje.');
-    }
 }
 
 function showSidebar() {
@@ -189,9 +171,7 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         const matchMaterial = fetchMatch(description, 'material', settings.threshold);
         if (matchMaterial) {
             const priceCell = sheet.getRange(currentRow, materialCol);
-            // price can be either direct 'price' (from cache) or 'price_material' (from API)
-            const materialPrice = matchMaterial.price !== undefined ? matchMaterial.price : (matchMaterial.price_material || 0);
-            priceCell.setValue(materialPrice);
+            priceCell.setValue(matchMaterial.price || 0);
             const matchScore = matchMaterial.match_score || 0;
             priceCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             priceCell.setNote(`📦 ${matchMaterial.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchMaterial.source || 'N/A'}\n📅 Datum: ${matchMaterial.date || 'N/A'}\n🔗 ID: ${matchMaterial.item_id || 'N/A'}`);
@@ -200,10 +180,8 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         // Fetch LABOR price
         const matchLabor = fetchMatch(description, 'labor', settings.threshold);
         const laborCell = sheet.getRange(currentRow, laborCol);
-        // price can be either direct 'price' (from cache) or 'price_labor' (from API)
-        const laborPrice = matchLabor ? (matchLabor.price !== undefined ? matchLabor.price : (matchLabor.price_labor || 0)) : 0;
-        if (matchLabor && laborPrice > 0) {
-            laborCell.setValue(laborPrice);
+        if (matchLabor && matchLabor.price > 0) {
+            laborCell.setValue(matchLabor.price);
             const matchScore = matchLabor.match_score || 0;
             laborCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             laborCell.setNote(`🔧 ${matchLabor.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchLabor.source || 'N/A'}\n📅 Datum: ${matchLabor.date || 'N/A'}\n🔗 ID: ${matchLabor.item_id || 'N/A'}`);
@@ -257,89 +235,12 @@ function columnLetterToIndex(letter) {
 }
 
 /**
- * Získá nebo vytvoří hidden sheet pro cache
- */
-function getOrCreateCacheSheet() {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let cacheSheet = ss.getSheetByName('MATCH_CACHE');
-    if (!cacheSheet) {
-        cacheSheet = ss.insertSheet('MATCH_CACHE');
-        cacheSheet.hideSheet();
-        // Header row: search_key, type, item_name, price, source, date, match_score, item_id, cached_at
-        cacheSheet.getRange(1, 1, 1, 9).setValues([
-            ['search_key', 'type', 'item_name', 'price', 'source', 'date', 'match_score', 'item_id', 'cached_at']
-        ]);
-    }
-    return cacheSheet;
-}
-
-/**
- * Najde položku v cache sheetu
- */
-function findInCache(searchKey, priceType) {
-    const cacheSheet = getOrCreateCacheSheet();
-    const data = cacheSheet.getDataRange().getValues();
-    const normalizedKey = searchKey.toLowerCase().trim();
-
-    for (let i = 1; i < data.length; i++) {
-        if (data[i][0] === normalizedKey && data[i][1] === priceType) {
-            return {
-                original_name: data[i][2],
-                price: data[i][3],
-                source: data[i][4],
-                date: data[i][5],
-                match_score: data[i][6],
-                item_id: data[i][7],
-                from_cache: true
-            };
-        }
-    }
-    return null;
-}
-
-/**
- * Uloží výsledek matche do cache
- */
-function saveToCache(searchKey, priceType, matchResult) {
-    if (!matchResult) return;
-    const cacheSheet = getOrCreateCacheSheet();
-    const normalizedKey = searchKey.toLowerCase().trim();
-
-    // Get the correct price based on type
-    const price = priceType === 'labor'
-        ? (matchResult.price_labor || 0)
-        : (matchResult.price_material || 0);
-
-    cacheSheet.appendRow([
-        normalizedKey,
-        priceType,
-        matchResult.original_name || '',
-        price,
-        matchResult.source || '',
-        matchResult.date || '',
-        matchResult.match_score || 0,
-        matchResult.item_id || '',
-        new Date().toISOString()
-    ]);
-}
-
-/**
- * Volání backendu pro získání ceny - S CACHE!
+ * Volání backendu pro získání ceny
  * @param {string} description - Popis položky
  * @param {string} priceType - 'material' nebo 'labor'
  */
 function fetchMatch(description, priceType, threshold) {
     const settings = getSettings();
-
-    // L1: Check local cache first (instant)
-    const cached = findInCache(description, priceType);
-    if (cached) {
-        Logger.log("Cache HIT: " + description);
-        return cached;
-    }
-
-    // L2: Fall back to API
-    Logger.log("Cache MISS, calling API: " + description);
     const url = `${API_BASE_URL}/match`;
     const options = {
         'method': 'post',
@@ -347,7 +248,7 @@ function fetchMatch(description, priceType, threshold) {
         'headers': { 'bypass-tunnel-reminder': 'true' },
         'payload': JSON.stringify({
             'items': [description],
-            'type': priceType,
+            'type': priceType || settings.priceType,
             'threshold': threshold || settings.threshold
         }),
         'muteHttpExceptions': true
@@ -357,14 +258,7 @@ function fetchMatch(description, priceType, threshold) {
         const response = UrlFetchApp.fetch(url, options);
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
-            const result = data[description] || null;
-
-            // Save to cache for next time
-            if (result) {
-                saveToCache(description, priceType, result);
-            }
-
-            return result;
+            return data[description] || null;
         }
     } catch (e) {
         Logger.log("Chyba při volání API: " + e.message);
