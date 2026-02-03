@@ -50,8 +50,8 @@ def match_items(req: MatchRequest):
             best = matches[0]
             best_score = best.get('match_score', 0)
             
-            # Always provide candidates for flexibility
-            candidates = matches[:5] if best_score < req.threshold else []
+            # Always provide all candidates so user can pick alternatives
+            candidates = matches[:5]
             
             # Return the specific price based on type + both prices for compatibility
             specific_price = best.get(price_field, 0)
