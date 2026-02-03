@@ -1,43 +1,69 @@
-# 🔄 Session Handoff - 2026-02-02
+# Session Handoff - 2026-02-04
 
-> **INSTRUCTION FOR AI:** Read this file FIRST. This project is synced via OneDrive. The previous session was on a different machine and ended with some local-only changes that couldn't be pushed due to OS-level permission issues.
+## Poslední změny (2026-02-03)
 
-## 🚀 Today's Achievements (Ready locally)
+### ✅ Dokončeno
 
-1. **PDF Extraction Logic Improvement**:
-   - `backend/services/ai_extractor.py`: Gemini prompts updated to combine multi-line descriptions (e.g., Code + Name split across lines).
-   - Rules softened to ensure one item stays as one entry while combining text.
+1. **Reverted cache implementace**
+   - Cache způsobovala bugy (ceny 0, nefunkční kandidáti)
+   - Vráceno k funkční verzi bez cache (`722bcca`)
+   - Cache implementace odložena na později
 
-2. **Automatic Data Cleaning**:
-   - `backend/database/price_db.py`: Added `_clean_item_name()` method.
-   - Automatically removes sequential IDs (1., a), 10.), bullet points, and noise before saving to DB.
-   - Applied to both automatic ingestion and manual selection.
+2. **Fix: Materiál s cenou 0 se nepřepisuje**
+   - Pokud API vrátí cenu 0, buňka zůstane prázdná (`cd0e821`)
 
-3. **Intelligent Selection UI (GAS)**:
-   - `gas/Sidebar.html` & `gas/Cenar.js`: New automatic candidate detection.
-   - If a cell with score < Threshold (default 40%) is clicked, a "Top Candidates" menu appears in the Sidebar.
-   - Users can choose the correct item with 1 click, seeing Name, Price, Date, and **PDF Source**.
+3. **Fix: Sync používá float toleranci**
+   - Opraveno porovnávání cen (tolerance 0.01) aby se položky neoznačovaly jako změněné kvůli float precision (`5c9113b`)
 
-4. **Maintenance Tool**:
-   - `scripts/normalize_items.py`: Created a script to clean up historical database fragmentation and merge duplicate items.
+4. **Fix: Kandidáti se zobrazují vždy**
+   - API nyní vrací top 5 kandidátů bez ohledu na match score (`3947d3f`)
+   - Uživatel může vybrat alternativu i při vysoké shodě
 
-## ⚠️ TECHNICAL DEBT / PENDING SYNC
+5. **Fix: Smart source_type pro ruční ceny**
+   - Jen práce (mat=0) → INTERNAL
+   - Jen materiál (práce=0) → SUPPLIER  
+   - Obojí → ADMIN
 
-The following actions **FAILED** on the previous machine due to environment restrictions and MUST be completed here:
+6. **Historie a analýza**
+   - Zobrazuje pouze ceny materiálu (práce ignorovány)
 
-- [ ] **Git Push**: Local commits failed with `mmap` error. 
-  - *Action:* Run `git status`, `git add .`, `git commit -m "feat: complete matching selection logic"`, and `git push origin main`.
-- [ ] **GAS Push (clasp)**: Failed due to PowerShell Execution Policy.
-  - *Action:* Run `clasp push` to sync the new Sidebar and Bridge logic to Google Sheets.
-- [ ] **DB Optimization**: 
-  - *Action:* Run `python scripts/normalize_items.py` to clean up old fragmented entries in Supabase.
+### ⏳ K otestování (po Render deploy)
 
-## 📍 Current State
-- **Database:** Supabase (Cloud) - Shared across machines.
-- **Backend:** Hosted on Render - Needs Git Push to redeploy.
-- **GAS:** Local files updated, needs `clasp push` to update the actual Sheets Add-on.
+- **Zobrazení kandidátů** - mělo by fungovat pro všechny buňky (i s vysokou shodou)
+- Po kliknutí na buňku v cenovém sloupci → "🔍 Zobrazit kandidáty" by mělo ukázat nabídku
 
-## ⏭️ Next Steps
-1. Verify `git` and `clasp` are working on this machine.
-2. Complete the "Pending Sync" tasks above.
-3. Test the automatic candidate menu in Google Sheets.
+### 🔧 Nastavení sloupců
+
+Uživatel používá vlastní nastavení:
+- Popis: **C**
+- Materiál: **E**
+- Práce: **F**
+
+(Defaulty jsou I a J)
+
+### 📋 Budoucí úkoly (viz FUTURE_IDEAS.md)
+
+1. **Aliasový systém** - učení z manuálních výběrů (naplánováno, neimplementováno)
+2. **Cache optimalizace** - implementovat správně po stabilizaci základních funkcí
+
+### 🔗 Poslední commity
+
+```
+3947d3f fix: always return candidates regardless of match score
+5c9113b fix: sync uses float tolerance to prevent false change detection
+cd0e821 fix: skip material prices of 0 during pricing
+722bcca revert: removed broken cache, back to working version
+```
+
+### � Poznámky
+
+- Databáze byla resetována a znovu naplněna (uživatel nahrál podklady)
+- Render backend se automaticky deployuje po push na main
+- GAS deployment: `clasp push` z `gas/` složky
+
+---
+
+**Příští kroky:**
+1. Otestovat zobrazení kandidátů
+2. Pokud funguje, začít s alias systémem
+3. Cache implementovat až po plné stabilizaci
