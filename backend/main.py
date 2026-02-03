@@ -42,32 +42,31 @@ def match_items(req: MatchRequest):
     price_field = 'price_labor' if req.type == 'labor' else 'price_material'
     
     # "Iron Curtain" Logic:
-    # Materials are only sourced from Suppliers (PDF) or Admin (Manually added)
-    # Labor is only sourced from Internal (Excel Budgets) or Admin (Manually added)
     source_filter = ['INTERNAL', 'ADMIN'] if req.type == 'labor' else ['SUPPLIER', 'ADMIN']
 
     for item in req.items:
-        # Use fuzzy search from DB with source filtering - get more candidates now
         matches = manager.db.search(item, limit=10, source_type_filter=source_filter)
         if matches:
             best = matches[0]
             best_score = best.get('match_score', 0)
             
-            # If best match is below threshold, provide all matches as candidates
-            candidates = []
-            if best_score < req.threshold:
-                # Take top 5 candidates
-                candidates = matches[:5]
+            # Always provide candidates for flexibility
+            candidates = matches[:5] if best_score < req.threshold else []
+            
+            # Return the specific price based on type + both prices for compatibility
+            specific_price = best.get(price_field, 0)
             
             results[item] = {
-                "price": best.get(price_field, 0) if best_score >= req.threshold else None,
+                "price": specific_price,  # Always return price (for cache)
+                "price_material": best.get('price_material', 0),  # Both for direct use
+                "price_labor": best.get('price_labor', 0),
                 "unit": best.get('unit', 'ks'),
                 "source": best.get('source'),
                 "date": str(best.get('date')),
                 "item_id": best.get('id'),
                 "original_name": best.get('item'),
                 "match_score": best_score,
-                "candidates": candidates if best_score < req.threshold else []
+                "candidates": candidates
             }
     return results
 
