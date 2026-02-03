@@ -189,7 +189,9 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         const matchMaterial = fetchMatch(description, 'material', settings.threshold);
         if (matchMaterial) {
             const priceCell = sheet.getRange(currentRow, materialCol);
-            priceCell.setValue(matchMaterial.price || 0);
+            // price can be either direct 'price' (from cache) or 'price_material' (from API)
+            const materialPrice = matchMaterial.price !== undefined ? matchMaterial.price : (matchMaterial.price_material || 0);
+            priceCell.setValue(materialPrice);
             const matchScore = matchMaterial.match_score || 0;
             priceCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             priceCell.setNote(`📦 ${matchMaterial.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchMaterial.source || 'N/A'}\n📅 Datum: ${matchMaterial.date || 'N/A'}\n🔗 ID: ${matchMaterial.item_id || 'N/A'}`);
@@ -198,8 +200,10 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         // Fetch LABOR price
         const matchLabor = fetchMatch(description, 'labor', settings.threshold);
         const laborCell = sheet.getRange(currentRow, laborCol);
-        if (matchLabor && matchLabor.price > 0) {
-            laborCell.setValue(matchLabor.price);
+        // price can be either direct 'price' (from cache) or 'price_labor' (from API)
+        const laborPrice = matchLabor ? (matchLabor.price !== undefined ? matchLabor.price : (matchLabor.price_labor || 0)) : 0;
+        if (matchLabor && laborPrice > 0) {
+            laborCell.setValue(laborPrice);
             const matchScore = matchLabor.match_score || 0;
             laborCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             laborCell.setNote(`🔧 ${matchLabor.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchLabor.source || 'N/A'}\n📅 Datum: ${matchLabor.date || 'N/A'}\n🔗 ID: ${matchLabor.item_id || 'N/A'}`);
@@ -301,11 +305,16 @@ function saveToCache(searchKey, priceType, matchResult) {
     const cacheSheet = getOrCreateCacheSheet();
     const normalizedKey = searchKey.toLowerCase().trim();
 
+    // Get the correct price based on type
+    const price = priceType === 'labor'
+        ? (matchResult.price_labor || 0)
+        : (matchResult.price_material || 0);
+
     cacheSheet.appendRow([
         normalizedKey,
         priceType,
         matchResult.original_name || '',
-        matchResult.price || 0,
+        price,
         matchResult.source || '',
         matchResult.date || '',
         matchResult.match_score || 0,
