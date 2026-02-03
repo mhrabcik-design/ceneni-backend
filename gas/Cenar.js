@@ -169,12 +169,13 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
 
         // Fetch MATERIAL price
         const matchMaterial = fetchMatch(description, 'material', settings.threshold);
-        if (matchMaterial) {
+        if (matchMaterial && matchMaterial.price > 0) {
             const priceCell = sheet.getRange(currentRow, materialCol);
-            priceCell.setValue(matchMaterial.price || 0);
+            priceCell.setValue(matchMaterial.price);
             const matchScore = matchMaterial.match_score || 0;
             priceCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             priceCell.setNote(`📦 ${matchMaterial.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchMaterial.source || 'N/A'}\n📅 Datum: ${matchMaterial.date || 'N/A'}\n🔗 ID: ${matchMaterial.item_id || 'N/A'}`);
+            matchesFound++;
         }
 
         // Fetch LABOR price
@@ -186,13 +187,10 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
             laborCell.setBackground(matchScore < 0.6 ? '#fff3cd' : null);
             laborCell.setNote(`🔧 ${matchLabor.original_name || 'N/A'}\n📊 Shoda: ${Math.round(matchScore * 100)}%\n🏢 Zdroj: ${matchLabor.source || 'N/A'}\n📅 Datum: ${matchLabor.date || 'N/A'}\n🔗 ID: ${matchLabor.item_id || 'N/A'}`);
         } else {
-            // No labor match - set 0
             laborCell.setValue(0);
             laborCell.setBackground(null);
             laborCell.setNote('🔧 Práce nenalezena v DB');
         }
-
-        if (matchMaterial || matchLabor) matchesFound++;
     }
 
     SpreadsheetApp.getUi().alert(`Hotovo! Oceněno ${matchesFound} položek (Materiál + Práce).`);
