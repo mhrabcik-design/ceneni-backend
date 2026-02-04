@@ -288,8 +288,8 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         return;
     }
 
-    // STEP 2: Extract descriptions for bulk request
-    const itemsToPrice = rowData.map(rd => rd.description);
+    // STEP 2: Extract UNIQUE descriptions for bulk request (duplicates use same result)
+    const itemsToPrice = [...new Set(rowData.map(rd => rd.description))];
 
     // STEP 3: Bulk fetch MATERIAL prices
     const materialResults = fetchMatchBulk(itemsToPrice, 'material', settings.threshold);
@@ -301,9 +301,12 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     // STEP 5: Apply results to cells (row by row)
     let matchesFound = 0;
 
-    for (const item of rowData) {
-        const currentRow = item.row;
-        const description = item.description;
+    for (const item of rowData) {
+
+        const currentRow = item.row;
+
+        const description = item.description;
+
 
         // Apply MATERIAL result
         const matchMaterial = materialResults[description];
