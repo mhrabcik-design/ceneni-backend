@@ -46,18 +46,30 @@ def match_items(req: MatchRequest):
     source_filter = ['INTERNAL', 'ADMIN'] if req.type == 'labor' else ['SUPPLIER', 'ADMIN']
 
     for item in req.items:
+        # 1. Check Cache
+        cached = manager.cache.get(item, req.type, req.threshold)
+        if cached:
+            results[item] = cached
+            continue
+
+        # 2. Search DB
         matches = manager.db.search(item, limit=10, source_type_filter=source_filter)
         if matches:
             best = matches[0]
             best_score = best.get('match_score', 0)
             
+            # Use threshold
+            if best_score < req.threshold:
+                results[item] = None
+                continue
+
             # Always provide all candidates so user can pick alternatives
             candidates = matches[:5]
             
             # Return the specific price based on type + both prices for compatibility
             specific_price = best.get(price_field, 0)
             
-            results[item] = {
+            match_result = {
                 "price": specific_price,  # Always return price (for cache)
                 "price_material": best.get('price_material', 0),  # Both for direct use
                 "price_labor": best.get('price_labor', 0),
@@ -69,6 +81,12 @@ def match_items(req: MatchRequest):
                 "match_score": best_score,
                 "candidates": candidates
             }
+            results[item] = match_result
+            
+            # 3. Store in Cache
+            manager.cache.set(item, req.type, req.threshold, match_result)
+        else:
+            results[item] = None
     return results
 
 class SuggestionRequest(BaseModel):
@@ -139,6 +157,8 @@ def add_custom_item(req: AddPriceRequest):
         price_labor=req.price_labor,
         unit=req.unit
     )
+    # Invalidate cache for this name
+    manager.cache.invalidate(req.name)
     return {"status": "added", "item_id": item_id, "name": req.name}
 
 class LearnRequest(BaseModel):
@@ -151,6 +171,10 @@ def learn_from_feedback(req: LearnRequest):
     success = manager.db.add_alias(item_id=req.item_id, query=req.query)
     if not success:
         raise HTTPException(status_code=400, detail="Failed to add alias (invalid item or query)")
+    
+    # Invalidate cache for the learned query
+    manager.cache.invalidate(req.query)
+    
     return {"status": "learned", "query": req.query, "item_id": req.item_id}
 
 @app.get("/status")
@@ -161,6 +185,7 @@ def get_status():
             "status": "online", 
             "total_items": stats['items'], 
             "total_prices": stats['prices'],
+            "cache_size": manager.cache.get_stats(),
             "database_path": stats['url']
         }
     except Exception as e:
@@ -179,6 +204,9 @@ async def ingest_file(file: UploadFile = File(...), file_type: Optional[str] = F
     # Cleanup
     if os.path.exists(temp_path):
         os.remove(temp_path)
+    
+    # Invalidate all cache after new data ingestion
+    manager.cache.clear()
         
     return result
     
@@ -206,12 +234,15 @@ def sync_admin_data(items: List[AdminSyncItem]):
     # Convert Pydantic models to dicts
     data = [it.dict() for it in items]
     manager.db.sync_admin_items(data)
+    # Invalidate all cache after sync
+    manager.cache.clear()
     return {"status": "success", "synced_count": len(data)}
 
 @app.post("/admin/reset-database")
 def reset_database():
     """Emergency: Wipes all data from the database."""
     manager.db.reset_all_data()
+    manager.cache.clear()
     return {"status": "success", "message": "Database has been completely reset."}
 
 @app.get("/admin/aliases")
@@ -223,6 +254,7 @@ def get_aliases():
 def batch_delete_aliases(alias_ids: List[int]):
     """Delete multiple aliases by their IDs."""
     manager.db.delete_aliases(alias_ids)
+    manager.cache.clear()
     return {"status": "success", "deleted_count": len(alias_ids)}
 
 if __name__ == "__main__":

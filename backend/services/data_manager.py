@@ -5,11 +5,13 @@ import pandas as pd
 from datetime import datetime
 from database.price_db import PriceDatabase
 from services.ai_extractor import AIExtractor
+from services.cache_manager import CacheManager
 
 class DataManager:
     def __init__(self, db_url=None):
         # We pass just the path, PriceDatabase handles connection
         self.db = PriceDatabase(db_url)
+        self.cache = CacheManager()
         # Initialize AI intentionally lazy or if key exists
         try:
             self.ai = AIExtractor()
