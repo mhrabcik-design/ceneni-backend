@@ -271,16 +271,39 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     const materialCol = columnLetterToIndex(materialColLetter);
     const laborCol = columnLetterToIndex(laborColLetter);
 
-    let matchesFound = 0;
+    // STEP 1: Collect all items
+    const itemsToPrice = [];
+    const rowMap = {}; // {description: rowIndex}
 
     for (let i = 0; i < values.length; i++) {
         const currentRow = startRow + i;
-        const description = sheet.getRange(currentRow, descCol).getValue();
+        const description = String(sheet.getRange(currentRow, descCol).getValue()).trim();
 
-        if (!description || String(description).length < 3) continue;
+        if (description && description.length >= 3) {
+            itemsToPrice.push(description);
+            rowMap[description] = currentRow;
+        }
+    }
 
-        // Fetch MATERIAL price
-        const matchMaterial = fetchMatch(description, 'material', settings.threshold);
+    if (itemsToPrice.length === 0) {
+        SpreadsheetApp.getUi().alert('Žádné položky k ocenění (popis příliš krátký nebo prázdný).');
+        return;
+    }
+
+    // STEP 2: Bulk fetch MATERIAL prices
+    const materialResults = fetchMatchBulk(itemsToPrice, 'material', settings.threshold);
+
+    // STEP 3: Bulk fetch LABOR prices
+    const laborResults = fetchMatchBulk(itemsToPrice, 'labor', settings.threshold);
+
+    // STEP 4: Apply results to cells
+    let matchesFound = 0;
+
+    for (const description of itemsToPrice) {
+        const currentRow = rowMap[description];
+
+        // Apply MATERIAL result
+        const matchMaterial = materialResults[description];
         if (matchMaterial && matchMaterial.price > 0) {
             const priceCell = sheet.getRange(currentRow, materialCol);
             priceCell.setValue(matchMaterial.price);
@@ -290,8 +313,8 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
             matchesFound++;
         }
 
-        // Fetch LABOR price
-        const matchLabor = fetchMatch(description, 'labor', settings.threshold);
+        // Apply LABOR result
+        const matchLabor = laborResults[description];
         const laborCell = sheet.getRange(currentRow, laborCol);
         if (matchLabor && matchLabor.price > 0) {
             laborCell.setValue(matchLabor.price);
@@ -305,7 +328,7 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         }
     }
 
-    SpreadsheetApp.getUi().alert(`Hotovo! Oceněno ${matchesFound} položek (Materiál + Práce).`);
+    SpreadsheetApp.getUi().alert(`Hotovo! Oceněno ${matchesFound} položek (Materiál + Práce) pomocí BULK API.`);
 }
 
 // Keep old function for backward compatibility (deprecated)
