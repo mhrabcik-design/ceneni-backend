@@ -208,6 +208,28 @@ class PriceDatabase:
             conn.commit()
             return True
 
+    def get_all_aliases(self):
+        """Returns all aliases stored in the database."""
+        with self.engine.connect() as conn:
+            stmt = select(
+                self.item_aliases.c.id,
+                self.item_aliases.c.item_id,
+                self.item_aliases.c.alias,
+                self.items.c.name.label('item_name'),
+                self.item_aliases.c.created_at
+            ).join(self.items, self.item_aliases.c.item_id == self.items.c.id)
+            
+            rows = conn.execute(stmt).fetchall()
+            return [
+                {
+                    "id": r.id,
+                    "item_id": r.item_id,
+                    "alias": r.alias,
+                    "item_name": r.item_name,
+                    "created_at": r.created_at.isoformat()
+                } for r in rows
+            ]
+
     def check_file_exists(self, file_hash=None, offer_number=None):
         """Check if a file with same hash or offer number exists."""
         with self.engine.connect() as conn:
@@ -622,9 +644,25 @@ class PriceDatabase:
                 
                 if overlap > 0:
                     score = (overlap * 2) + seq
+                    
+                    # Calculate a better match_score (0-1) for the UI
+                    # If all query tokens are found in the searchable blob, the score should be high
+                    token_score = overlap / len(query_tokens) if query_tokens else 0
+                    
+                    # Fuzzy match against the full blob often yields low ratios for short queries
+                    # Let's also try fuzzy matching against the name and each alias separately
+                    best_fuzz = difflib.SequenceMatcher(None, q_norm, r.normalized_name).ratio()
+                    for al_row in item_aliases_rows:
+                        al_fuzz = difflib.SequenceMatcher(None, q_norm, al_row.alias).ratio()
+                        if al_fuzz > best_fuzz:
+                            best_fuzz = al_fuzz
+                    
+                    # Final match score for UI (weighted tokens + best fuzzy)
+                    ui_match_score = (token_score * 0.8) + (best_fuzz * 0.2)
+                    
                     # Convert row to dict and add match_score
                     d = dict(r._mapping)
-                    d['match_score'] = round(seq, 2)  # 0-1 similarity ratio
+                    d['match_score'] = round(ui_match_score, 2)
                     scored.append((score, d))
             
             scored.sort(key=lambda x: x[0], reverse=True)
@@ -656,3 +694,18 @@ class PriceDatabase:
         name = re.sub(r'\s+', ' ', name).strip()
         
         return name
+
+    def get_all_aliases(self):
+        """Fetch all aliases for admin view."""
+        with self.engine.connect() as conn:
+            stmt = select(
+                self.item_aliases.c.id,
+                self.item_aliases.c.item_id,
+                self.item_aliases.c.alias,
+                self.items.c.name.label('item_name')
+            ).select_from(
+                self.item_aliases.join(self.items, self.item_aliases.c.item_id == self.items.c.id)
+            ).order_by(self.item_aliases.c.created_at.desc())
+            
+            rows = conn.execute(stmt).fetchall()
+            return [dict(r._mapping) for r in rows]

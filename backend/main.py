@@ -214,6 +214,11 @@ def reset_database():
     manager.db.reset_all_data()
     return {"status": "success", "message": "Database has been completely reset."}
 
+@app.get("/admin/aliases")
+def get_aliases():
+    """List all learned aliases for debugging."""
+    return manager.db.get_all_aliases()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
