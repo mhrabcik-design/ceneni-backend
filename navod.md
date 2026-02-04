@@ -61,7 +61,17 @@ Pro udržení čistoty dat systém striktně rozděluje zdroje:
 
 ---
 
-## ⚙️ 3. Správa databáze (Admin Sheet)
+## 🧠 2.7 Alias Systém (Jak se AI učí)
+
+Systém obsahuje "inteligentní paměť", která se učí z vašich manuálních rozhodnutí.
+
+1.  **Učení:** Pokud v sidebaru kliknete na položku z menu (manuální výběr), systém si zapamatuje váš původní hledaný výraz jako "alias" pro tuto položku.
+2.  **Výhoda:** Příště, když napíšete stejný (nebo podobný) výraz, systém už položku najde s vysokou pravděpodobností (nad 80 %) a nabídne ji na prvním místě.
+3.  **Hromadné promazávání:** Pokud se systém naučil chybnou vazbu, můžete ji smazat v menu: **🤖 AI Asistent -> 🧠 Správa Aliasů (Učení) -> Zobrazit naučené aliasy**.
+
+---
+
+## ⚙️ 3. Správa databáze (Admin Sheets)
 
 Pro hromadné úpravy cen a názvů slouží dedikovaný list.
 

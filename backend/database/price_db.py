@@ -374,7 +374,22 @@ class PriceDatabase:
                 
                 if overlap > 0:
                     score = (overlap * 2) + seq
-                    scored.append((score, {"id": r.id, "name": r.name}))
+                    
+                    # Unified UI Match Score Logic
+                    token_score = overlap / len(query_tokens) if query_tokens else 0
+                    best_fuzz = difflib.SequenceMatcher(None, q_norm, r.normalized_name).ratio()
+                    for al_row in item_aliases_rows:
+                        al_fuzz = difflib.SequenceMatcher(None, q_norm, al_row.alias).ratio()
+                        if al_fuzz > best_fuzz:
+                            best_fuzz = al_fuzz
+                    
+                    ui_match_score = (token_score * 0.8) + (best_fuzz * 0.2)
+                    
+                    scored.append((score, {
+                        "id": r.id, 
+                        "name": r.name, 
+                        "match_score": round(ui_match_score, 2)
+                    }))
             
             scored.sort(key=lambda x: x[0], reverse=True)
             return [x[1] for x in scored[:limit]]
@@ -708,18 +723,3 @@ class PriceDatabase:
         name = re.sub(r'\s+', ' ', name).strip()
         
         return name
-
-    def get_all_aliases(self):
-        """Fetch all aliases for admin view."""
-        with self.engine.connect() as conn:
-            stmt = select(
-                self.item_aliases.c.id,
-                self.item_aliases.c.item_id,
-                self.item_aliases.c.alias,
-                self.items.c.name.label('item_name')
-            ).select_from(
-                self.item_aliases.join(self.items, self.item_aliases.c.item_id == self.items.c.id)
-            ).order_by(self.item_aliases.c.created_at.desc())
-            
-            rows = conn.execute(stmt).fetchall()
-            return [dict(r._mapping) for r in rows]
