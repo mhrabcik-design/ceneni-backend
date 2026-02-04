@@ -285,10 +285,13 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
         }
     }
 
-    if (itemsToPrice.length === 0) {
+    if (rowData.length === 0) {
         SpreadsheetApp.getUi().alert('Žádné položky k ocenění (popis příliš krátký nebo prázdný).');
         return;
     }
+
+    // STEP 2: Extract descriptions for bulk request
+    const itemsToPrice = rowData.map(rd => rd.description);
 
     // STEP 2: Bulk fetch MATERIAL prices
     const materialResults = fetchMatchBulk(itemsToPrice, 'material', settings.threshold);
