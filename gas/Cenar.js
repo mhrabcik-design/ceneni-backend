@@ -308,7 +308,7 @@ function getActiveCellContext() {
 /**
  * Aplikuje vybraného kandidáta na konkrétní řádek
  */
-function applyCandidate(row, candidate, type) {
+function applyCandidate(row, candidate, type, query) {
     const sheet = SpreadsheetApp.getActiveSheet();
     const settings = getSettings();
 
@@ -334,7 +334,36 @@ function applyCandidate(row, candidate, type) {
         `📅 Datum: ${candidate.date || 'N/A'}\n` +
         `🔗 ID: ${candidate.id || 'N/A'}`;
     priceCell.setNote(note);
+
+    // AI Feedback - Learn the alias
+    if (query && candidate.id) {
+        learnFromFeedback(query, candidate.id);
+    }
+
     return true;
+}
+
+/**
+ * Pošle informaci o manuálním výběru do backendu, aby se systém naučil alias.
+ */
+function learnFromFeedback(query, itemId) {
+    const url = `${API_BASE_URL}/feedback/learn`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify({
+            'query': query,
+            'item_id': itemId
+        }),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        UrlFetchApp.fetch(url, options);
+    } catch (e) {
+        Logger.log("Chyba při učení aliasu: " + e.message);
+    }
 }
 
 /**

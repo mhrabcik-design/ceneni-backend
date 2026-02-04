@@ -484,7 +484,7 @@
                 `;
 
                 item.onclick = () => {
-                    google.script.run.applyCandidate(ctx.row, cand, ctx.type);
+                    google.script.run.applyCandidate(ctx.row, cand, ctx.type, ctx.description);
                     panel.style.display = 'none';
                     lastCellKey = "";
                 };
