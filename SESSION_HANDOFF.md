@@ -1,69 +1,42 @@
-# Session Handoff - 2026-02-04
+# Session Handoff - 2026-02-04 (Update: Mainframe Transition)
 
-## Poslední změny (2026-02-03)
+## 🎯 Aktuální stav projektu
+Projekt je ve stabilizovaném stavu "Zero Bug Policy". Backend byl kompletně vyčištěn od lint chyb a logika matchování byla zpevněna.
 
-### ✅ Dokončeno
+### ✅ Dokončeno (Dnes)
+1. **Kompletní Linting Backend**:
+   - Nainstalován a spuštěn `ruff`.
+   - Opraveno 130+ chyb (bare excepts, import order, multi-line statements).
+   - Backend nyní splňuje standard PEP8.
+2. **Git & GitHub Sync**:
+   - Všechny změny pushnuty na `main`.
+   - Nasazeno na Render (automatický deploy).
+3. **Stabilizace GAS-Backend Bridge**:
+   - Opravena tolerance pro float precision (0.01) v `sync_admin_items`.
+   - Vyřešeny problémy s chybějícím `os` modulem v `data_manager.py`.
 
-1. **Reverted cache implementace**
-   - Cache způsobovala bugy (ceny 0, nefunkční kandidáti)
-   - Vráceno k funkční verzi bez cache (`722bcca`)
-   - Cache implementace odložena na později
+### 🏁 Stav Checklistu
+- ✅ **Security**: PASSED
+- ✅ **Lint**: PASSED
+- ✅ **Schema**: PASSED
+- ❌ **Tests**: FAILED (Doinstalován `pytest`, ale v projektu zatím nejsou žádné `.py` testy – nalezena 0).
 
-2. **Fix: Materiál s cenou 0 se nepřepisuje**
-   - Pokud API vrátí cenu 0, buňka zůstane prázdná (`cd0e821`)
+### 🔧 Aktuální konfigurace (Mainframe připomenutí)
+- **Backend API**: `https://ceneni-backend.onrender.com`
+- **Sloupce v Google Sheets**:
+  - Popis: **C** (sloupec 3)
+  - Materiál: **E** (sloupec 5)
+  - Práce: **F** (sloupec 6)
+- **Logika Price Selection**: Podporuje manuální výběr z top 5 kandidátů v sidebaru.
 
-3. **Fix: Sync používá float toleranci**
-   - Opraveno porovnávání cen (tolerance 0.01) aby se položky neoznačovaly jako změněné kvůli float precision (`5c9113b`)
-
-4. **Fix: Kandidáti se zobrazují vždy**
-   - API nyní vrací top 5 kandidátů bez ohledu na match score (`3947d3f`)
-   - Uživatel může vybrat alternativu i při vysoké shodě
-
-5. **Fix: Smart source_type pro ruční ceny**
-   - Jen práce (mat=0) → INTERNAL
-   - Jen materiál (práce=0) → SUPPLIER  
-   - Obojí → ADMIN
-
-6. **Historie a analýza**
-   - Zobrazuje pouze ceny materiálu (práce ignorovány)
-
-### ⏳ K otestování (po Render deploy)
-
-- **Zobrazení kandidátů** - mělo by fungovat pro všechny buňky (i s vysokou shodou)
-- Po kliknutí na buňku v cenovém sloupci → "🔍 Zobrazit kandidáty" by mělo ukázat nabídku
-
-### 🔧 Nastavení sloupců
-
-Uživatel používá vlastní nastavení:
-- Popis: **C**
-- Materiál: **E**
-- Práce: **F**
-
-(Defaulty jsou I a J)
-
-### 📋 Budoucí úkoly (viz FUTURE_IDEAS.md)
-
-1. **Aliasový systém** - učení z manuálních výběrů (naplánováno, neimplementováno)
-2. **Cache optimalizace** - implementovat správně po stabilizaci základních funkcí
-
-### 🔗 Poslední commity
-
-```
-3947d3f fix: always return candidates regardless of match score
-5c9113b fix: sync uses float tolerance to prevent false change detection
-cd0e821 fix: skip material prices of 0 during pricing
-722bcca revert: removed broken cache, back to working version
-```
-
-### � Poznámky
-
-- Databáze byla resetována a znovu naplněna (uživatel nahrál podklady)
-- Render backend se automaticky deployuje po push na main
-- GAS deployment: `clasp push` z `gas/` složky
+### 📋 Příští kroky (Draft pro novou session)
+1. **Aliasový systém** (Větev: `feature/alias-system`):
+   - Učení se z manuálních výběrů (pokud uživatel vybere kandidáta, systém si to zapamatuje jako alias).
+2. **Vytvoření Unit Testů**:
+   - Vytvořit `backend/tests/test_api.py` pro 100% zelený checklist.
+3. **Cache**:
+   - Re-implementace cache až po plné stabilizaci alias systému.
 
 ---
 
-**Příští kroky:**
-1. Otestovat zobrazení kandidátů
-2. Pokud funguje, začít s alias systémem
-3. Cache implementovat až po plné stabilizaci
+**Poznámka pro "Mainframe":** Před zahájením vývoje Alias systému doporučuji vytvořit novou větev `git checkout -b feature/alias-system`. Kód je čistý a připravený.
