@@ -271,17 +271,15 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     const materialCol = columnLetterToIndex(materialColLetter);
     const laborCol = columnLetterToIndex(laborColLetter);
 
-    // STEP 1: Collect all items
-    const itemsToPrice = [];
-    const rowMap = {}; // {description: rowIndex}
+    // STEP 1: Collect all items with their row indices
+    const rowData = []; // [{row: number, description: string}]
 
     for (let i = 0; i < values.length; i++) {
         const currentRow = startRow + i;
         const description = String(sheet.getRange(currentRow, descCol).getValue()).trim();
 
         if (description && description.length >= 3) {
-            itemsToPrice.push(description);
-            rowMap[description] = currentRow;
+            rowData.push({ row: currentRow, description: description });
         }
     }
 
@@ -293,10 +291,11 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     // STEP 2: Extract descriptions for bulk request
     const itemsToPrice = rowData.map(rd => rd.description);
 
-    // STEP 2: Bulk fetch MATERIAL prices
+    // STEP 3: Bulk fetch MATERIAL prices
     const materialResults = fetchMatchBulk(itemsToPrice, 'material', settings.threshold);
 
-    // STEP 3: Bulk fetch LABOR prices
+
+    // STEP 4: Bulk fetch LABOR prices
     const laborResults = fetchMatchBulk(itemsToPrice, 'labor', settings.threshold);
 
     // STEP 4: Apply results to cells
