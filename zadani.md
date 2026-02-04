@@ -54,6 +54,7 @@ We treat data sources differently based on their origin:
     - Cell notes with original name + match score
     - Feedback system (blacklist + custom prices)
     - Load-from-cell for history search
+    - **Alias System Management** (Learn from manual selections, view/delete learned aliases)
 
 ---
 
@@ -90,11 +91,14 @@ We treat data sources differently based on their origin:
 - [x] **Clasp Workflow:** Automated syncing of Apps Script files via command line.
 - [x] **Project Re-structure:** Organized `gas/` and `scripts/` directories.
 
-### Phase 8: The Iron Curtain (Data Integrity) (✅ COMPLETE)
-- [x] **Database Schema:** Added `source_type` to `sources` table (`SUPPLIER`, `INTERNAL`, `ADMIN`).
-- [x] **Split Search Logic:** Material lookup ignores internal budgets; Labor lookup ignores supplier offers.
-- [x] **Forced Cleansing:** During internal budget ingestion, material prices are automatically zeroed/ignored.
 - [x] **UI Clarity:** Updated Upload Panel with clear material vs. labor labels.
+
+### Phase 9: Alias System (The Brain) (✅ COMPLETE)
+- [x] **Smart Learning:** System automatically saves manual user selections as "aliases" to improve future matches.
+- [x] **Advanced Scoring:** Match score calculation upgraded to give >80% weight to learned aliases (passing the threshold easily).
+- [x] **Alias Admin UI:** New list `ADMIN_ALIASY` in Google Sheets to view and manage (delete) what the system has learned.
+- [x] **Bulk Management:** Batch-delete endpoints and UI actions for aliases.
+- [x] **Automatic Testing:** Professional `pytest` suite covering Matcher, Search, and Alias flow.
 
 ---
 
@@ -116,6 +120,9 @@ Data jsou nyní nahrávána přímo uživatelem přes **Centrum nahrávání** v
 | `GET` | `/items/{id}/details` | Full details including all sources |
 | `DELETE` | `/items/{id}` | Remove item from database (blacklist) |
 | `POST` | `/items/add` | Add custom item with price |
+| `POST` | `/feedback/learn` | Save manual selection as alias |
+| `GET` | `/admin/aliases` | List all learned aliases |
+| `POST` | `/admin/aliases/batch-delete` | Batch delete aliases |
 
 ### Match Request Example
 ```json
@@ -156,6 +163,7 @@ POST /match
 - **🔍 Zobrazit graf** - Show price history chart
 - **🗑️ Smazat položku z DB** - Blacklist bad matches
 - **➕ Přidat do DB** - Add custom prices
+- **🧠 Správa Aliasů** - View (list `ADMIN_ALIASY`) and Delete learned search patterns.
 
 ### Cell Notes (Transparency)
 After pricing, each cell contains a note:
@@ -212,10 +220,10 @@ ceneni/
 
 ## 📈 9. Future Enhancements
 
-- [ ] **Upload via Google Sheets** - Import new files directly from sidebar
-- [ ] **Detail Panel** - Full source comparison in sidebar
+- [ ] **Global Synonyms** - Extend alias system with global word mappings (e.g., SDK = Sádrokarton)
+- [ ] **Smart Cache** - Re-enable caching with intelligent invalidation upon learning new aliases.
+- [ ] **Excel Import via Sidebar** (Planned) - Import new files directly from sidebar
 - [ ] **Automatic Re-pricing** - Detect when prices are outdated
-- [ ] **Export Report** - Generate pricing summary document
 - [ ] **Multi-user** - Track who added/modified prices
 
 ---
@@ -253,11 +261,14 @@ ceneni/
 - ✅ **Dev Logistics:** Cleaned up project structure, moved GAS files to `gas/` folder.
 - ✅ **Database Admin:** Added a safe "Nuclear" reset button for developers.
 
-### Previous Sessions
-- Initial backend setup with SQLite
-- Basic AI extraction with Gemini
-- Google Sheets sidebar integration
 - Price history chart with Chart.js
+
+### 2025-02-04: The Brain (Alias System)
+- ✅ **Learning Loop:** Implemented feedback endpoint to learn from user manual selections.
+- ✅ **Intelligent Scoring:** Upgraded search scoring to prioritize learned aliases (score > 80%).
+- ✅ **Alias Management:** Added `ADMIN_ALIASY` sheet and GAS menu for full control over system memory.
+- ✅ **Stability:** 4 functional tests passing via `pytest` to ensure zero regressions.
+- ✅ **Code Quality:** Optimized `PriceDatabase` by unifying scoring logic and cleaning up redundant methods.
 
 ---
 
