@@ -141,6 +141,18 @@ def add_custom_item(req: AddPriceRequest):
     )
     return {"status": "added", "item_id": item_id, "name": req.name}
 
+class LearnRequest(BaseModel):
+    query: str
+    item_id: int
+
+@app.post("/feedback/learn")
+def learn_from_feedback(req: LearnRequest):
+    """Save user's manual selection as an alias for future searches."""
+    success = manager.db.add_alias(item_id=req.item_id, query=req.query)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to add alias (invalid item or query)")
+    return {"status": "learned", "query": req.query, "item_id": req.item_id}
+
 @app.get("/status")
 def get_status():
     try:

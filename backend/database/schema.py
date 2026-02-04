@@ -26,6 +26,19 @@ class PriceItem(Base):
     
     # Relationship to PriceEntry (Item -> Entries)
     entries = relationship("PriceEntry", back_populates="item")
+    aliases = relationship("ItemAlias", back_populates="item", cascade="all, delete-orphan")
+
+class ItemAlias(Base):
+    """Represents a search alias for an item, learned from user feedback."""
+    __tablename__ = 'item_aliases'
+
+    id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, ForeignKey('items.id'), nullable=False)
+    alias = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    item = relationship("PriceItem", back_populates="aliases")
 
 class PriceEntry(Base):
     """Represents a specific price point found in a source file."""

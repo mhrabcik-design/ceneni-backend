@@ -41,17 +41,37 @@ class SmartMatcher:
             
         ranked = []
         for cand in candidates:
-            cand_item = cand['item'].lower()
+            # Get aliases for scoring to ensure alias-matches get high scores
+            item_name = cand['item'].lower()
             
-            # Count how many query words are in the candidate
-            words_contained = sum(1 for w in words if w in cand_item)
-            word_score = words_contained / len(words) if words else 0
+            # If the DB search already provided a match_score (which includes aliases), 
+            # we can use that as a base or fetch aliases for re-calculation.
+            # To stay consistent with SmartMatcher's word-overlap logic:
+            item_id = cand.get('id')
+            aliases_text = ""
+            if item_id:
+                # We can't easily join here without DB access, but cand might have it 
+                # or we can assume the item name is augmented or just use what we have.
+                # Actually, let's look at the candidates' data again.
+                pass
+
+            # Since SmartMatcher is used for 'finding' but db.search already did the heavy lifting,
+            # let's make sure we at least check if the query words are in the name.
+            # If we want to truly support aliases here, we should ideally have them in 'cand'.
             
-            # Fuzzy ratio
-            fuzzy_score = difflib.SequenceMatcher(None, q_clean, cand_item).ratio()
+            # Simple approach: If the candidate doesn't match well by name, 
+            # but it WAS returned by db.search, let's trust the db.search score if it's high.
+            db_score = cand.get('match_score', 0)
             
-            # Final score (prefer word matches over general fuzziness)
-            final_score = (word_score * 0.7) + (fuzzy_score * 0.3)
+            # Count how many query words are in the candidate name
+            words_in_name = sum(1 for w in words if w in item_name)
+            word_score = words_in_name / len(words) if words else 0
+            
+            # Fuzzy ratio with name
+            fuzzy_score = difflib.SequenceMatcher(None, q_clean, item_name).ratio()
+            
+            # combine: If DB score is high (alias match), we respect it.
+            final_score = max((word_score * 0.7) + (fuzzy_score * 0.3), db_score)
             
             ranked.append((final_score, cand))
         

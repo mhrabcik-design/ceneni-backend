@@ -44,6 +44,13 @@ class PriceDatabase:
             Column('unit', String),
             Column('quantity', Float)
         )
+
+        self.item_aliases = Table('item_aliases', self.metadata,
+            Column('id', Integer, primary_key=True),
+            Column('item_id', Integer, ForeignKey('items.id')),
+            Column('alias', String, index=True),
+            Column('created_at', DateTime, server_default=func.now())
+        )
         
         self.metadata.create_all(self.engine)
         self._migrate_schema()
@@ -162,6 +169,45 @@ class PriceDatabase:
             conn.commit()
             return item_id
 
+    def add_alias(self, item_id, query):
+        """Add a search query as an alias for an item to improve future matches."""
+        if not query or len(query) < 2:
+            return False
+            
+        with self.engine.connect() as conn:
+            # 1. Clean query
+            clean_q = self._clean_item_name(query).lower().strip()
+            if not clean_q:
+                return False
+                
+            # 2. Check if item exists
+            item_exists = conn.execute(select(self.items.c.id).where(self.items.c.id == item_id)).scalar()
+            if not item_exists:
+                return False
+                
+            # 3. Prevent trivial aliases (matching the item name itself)
+            item_name = conn.execute(select(self.items.c.name).where(self.items.c.id == item_id)).scalar()
+            if item_name and item_name.lower().strip() == clean_q:
+                return True # Technically "added" (exists as name)
+                
+            # 4. Check if alias already exists for this item
+            existing = conn.execute(
+                select(self.item_aliases.c.id)
+                .where(self.item_aliases.c.item_id == item_id)
+                .where(self.item_aliases.c.alias == clean_q)
+            ).scalar()
+            
+            if existing:
+                return True
+                
+            # 5. Add alias
+            conn.execute(self.item_aliases.insert().values(
+                item_id=item_id,
+                alias=clean_q
+            ))
+            conn.commit()
+            return True
+
     def check_file_exists(self, file_hash=None, offer_number=None):
         """Check if a file with same hash or offer number exists."""
         with self.engine.connect() as conn:
@@ -261,20 +307,34 @@ class PriceDatabase:
                 rows = conn.execute(stmt).fetchall()
                 return [{"id": r.id, "name": r.name} for r in rows]
             
-            # OR conditions
+            # OR conditions for items and aliases
             conditions = [self.items.c.normalized_name.ilike(f'%{t}%') for t in tokens]
+            alias_conditions = [self.item_aliases.c.alias.ilike(f'%{t}%') for t in tokens]
+            
+            # Subquery to get unique item_ids from aliases matching tokens
+            matching_alias_ids = select(self.item_aliases.c.item_id).where(or_(*alias_conditions))
+            
             stmt = select(self.items.c.id, self.items.c.name, self.items.c.normalized_name).where(
-                or_(*conditions)
+                or_(*conditions, self.items.c.id.in_(matching_alias_ids))
             )
             rows = conn.execute(stmt).fetchall()
             
             # Python Scoring
             scored = []
             for r in rows:
-                item_tokens = set(r.normalized_name.split())
+                # Get all aliases for this item to include in scoring
+                item_aliases_rows = conn.execute(
+                    select(self.item_aliases.c.alias).where(self.item_aliases.c.item_id == r.id)
+                ).fetchall()
+                item_aliases_text = " ".join([al.alias for al in item_aliases_rows])
+                
+                # Combine name and aliases for richer matching
+                searchable_blob = (r.normalized_name + " " + item_aliases_text).lower()
+                
+                item_tokens = set(searchable_blob.split())
                 query_tokens = set(tokens)
                 overlap = len(item_tokens.intersection(query_tokens))
-                seq = difflib.SequenceMatcher(None, q_norm, r.normalized_name).ratio()
+                seq = difflib.SequenceMatcher(None, q_norm, searchable_blob).ratio()
                 
                 if overlap > 0:
                     score = (overlap * 2) + seq
@@ -532,7 +592,12 @@ class PriceDatabase:
                 return [dict(r._mapping) for r in rows]
             
             conditions = [self.items.c.normalized_name.ilike(f'%{t}%') for t in tokens]
-            stmt = base_query.where(or_(*conditions))
+            alias_conditions = [self.item_aliases.c.alias.ilike(f'%{t}%') for t in tokens]
+            
+            # Subquery to get unique item_ids from aliases matching tokens
+            matching_alias_ids = select(self.item_aliases.c.item_id).where(or_(*alias_conditions))
+            
+            stmt = base_query.where(or_(*conditions, self.items.c.id.in_(matching_alias_ids)))
             
             rows = conn.execute(stmt).fetchall()
             
@@ -543,10 +608,17 @@ class PriceDatabase:
                     continue
                 seen_ids.add(r.id)
                 
-                item_tokens = set(r.normalized_name.split())
+                # Get aliases for scoring
+                item_aliases_rows = conn.execute(
+                    select(self.item_aliases.c.alias).where(self.item_aliases.c.item_id == r.id)
+                ).fetchall()
+                item_aliases_text = " ".join([al.alias for al in item_aliases_rows])
+                searchable_blob = (r.normalized_name + " " + item_aliases_text).lower()
+                
+                item_tokens = set(searchable_blob.split())
                 query_tokens = set(tokens)
                 overlap = len(item_tokens.intersection(query_tokens))
-                seq = difflib.SequenceMatcher(None, q_norm, r.normalized_name).ratio()
+                seq = difflib.SequenceMatcher(None, q_norm, searchable_blob).ratio()
                 
                 if overlap > 0:
                     score = (overlap * 2) + seq
