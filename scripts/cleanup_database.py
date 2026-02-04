@@ -10,7 +10,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backend'))
 
-from database.price_db import PriceDatabase
+from database.price_db import PriceDatabase  # noqa: E402
 
 # Klíčová slova pro odstranění - POUZE položky které ZAČÍNAJÍ těmito slovy
 # Toto jsou opravdu jen součty kapitol, ne validní položky
@@ -72,7 +72,7 @@ def cleanup_database():
     
     # Získat statistiky po
     stats_after = db.get_stats()
-    print(f"\n✅ Hotovo!")
+    print("\n✅ Hotovo!")
     print(f"📊 Po: {stats_after['items']} položek, {stats_after['prices']} cen")
     print(f"🗑️ Smazáno: {deleted_count} položek")
 

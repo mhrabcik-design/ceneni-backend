@@ -26,7 +26,7 @@ class PDFProcessor:
             # Pattern: [code]? [description] [quantity] [unit] [price]
             
             # For now, let's extract by lines
-            lines = [l.strip() for l in full_text.split('\n') if l.strip()]
+            lines = [line.strip() for line in full_text.split('\n') if line.strip()]
             for i, line in enumerate(lines):
                 # Ignore lines that look like percentages or have '%'
                 if '%' in line or ' slev' in line.lower():
@@ -40,7 +40,8 @@ class PDFProcessor:
                     price_str = price_match.group(1).replace(' ', '').replace(',', '.')
                     try:
                         price = float(price_str)
-                        if price < 0.01: continue # Ignore zero prices
+                        if price < 0.01:
+                            continue  # Ignore zero prices
 
                         # We need to find the description which is usually 1-2 lines above
                         # OR on the same line if it's a table row
@@ -65,7 +66,7 @@ class PDFProcessor:
                             'date': file_date,
                             'source': os.path.basename(file_path)
                         })
-                    except:
+                    except Exception:
                         continue
             
             # De-duplicate items from the same PDF (simple check)

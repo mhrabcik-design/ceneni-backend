@@ -1,20 +1,19 @@
 import os
 import sys
-import shutil
 import tempfile
 
 # Add current dir to path to import local modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.processors.pdf_processor import PDFProcessor
-from backend.processors.excel_processor import ExcelProcessor
 from backend.database.price_db import PriceDatabase
+from backend.processors.excel_processor import ExcelProcessor
+from backend.processors.pdf_processor import PDFProcessor
 
 def safe_process_excel(proc, path, is_internal):
     # Try reading directly first
     try:
         return proc.extract_data(path, is_internal=is_internal)
-    except Exception as e:
+    except Exception:
         print(f"  Direct read failed for {os.path.basename(path)}, trying copy helper...")
     
     # If direct read fails, try copying to temp
@@ -27,8 +26,10 @@ def safe_process_excel(proc, path, is_internal):
                 f_dst.write(f_src.read())
         
         items = proc.extract_data(tmp_path, is_internal=is_internal)
-        try: os.remove(tmp_path)
-        except: pass
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
         return items
     except Exception as e:
         print(f"  Complete failure for {os.path.basename(path)}: {e}")

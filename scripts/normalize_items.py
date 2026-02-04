@@ -14,7 +14,7 @@ root_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 load_dotenv(os.path.join(root_dir, '.env'))
 sys.path.append(os.path.join(root_dir, 'backend'))
 
-from database.price_db import PriceDatabase
+from database.price_db import PriceDatabase  # noqa: E402
 
 def normalize_database():
     db_url = os.getenv("DATABASE_URL")
@@ -22,7 +22,7 @@ def normalize_database():
         print("❌ DATABASE_URL not found in .env")
         return
 
-    print(f"🚀 Starting database normalization...")
+    print("🚀 Starting database normalization...")
     db = PriceDatabase(db_url)
     
     stats_before = db.get_stats()
@@ -106,7 +106,7 @@ def normalize_database():
         conn.commit()
 
     stats_after = db.get_stats()
-    print(f"\n✅ Finished!")
+    print("\n✅ Finished!")
     print(f"✨ Items cleaned: {updated_count}")
     print(f"🔗 Items merged: {merged_count}")
     print(f"📊 After: {stats_after['items']} items")

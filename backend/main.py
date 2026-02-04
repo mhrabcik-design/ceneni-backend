@@ -1,18 +1,19 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
-from typing import List, Optional
-import sys
 import os
 import shutil
+import sys
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 
 load_dotenv()
 
 # Add root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi.middleware.cors import CORSMiddleware
-from services.data_manager import DataManager
+from services.data_manager import DataManager  # noqa: E402
 
 app = FastAPI(title="AI Pricing Assistant API v2")
 
@@ -184,7 +185,7 @@ class AdminSyncItem(BaseModel):
 @app.post("/admin/batch-delete")
 def batch_delete_items(item_ids: List[int]):
     """Delete multiple items from the database."""
-    success = manager.db.delete_items(item_ids)
+    manager.db.delete_items(item_ids)
     return {"status": "success", "deleted_count": len(item_ids)}
 
 @app.post("/admin/sync")
@@ -192,13 +193,13 @@ def sync_admin_data(items: List[AdminSyncItem]):
     """Sync changes from the admin sheet to the database."""
     # Convert Pydantic models to dicts
     data = [it.dict() for it in items]
-    success = manager.db.sync_admin_items(data)
+    manager.db.sync_admin_items(data)
     return {"status": "success", "synced_count": len(data)}
 
 @app.post("/admin/reset-database")
 def reset_database():
     """Emergency: Wipes all data from the database."""
-    success = manager.db.reset_all_data()
+    manager.db.reset_all_data()
     return {"status": "success", "message": "Database has been completely reset."}
 
 if __name__ == "__main__":

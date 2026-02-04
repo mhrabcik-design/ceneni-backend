@@ -1,9 +1,10 @@
+import hashlib
 import os
+import re
+import pandas as pd
 from datetime import datetime
 from database.price_db import PriceDatabase
 from services.ai_extractor import AIExtractor
-import pandas as pd
-import hashlib
 
 class DataManager:
     def __init__(self, db_url=None):
@@ -12,7 +13,7 @@ class DataManager:
         # Initialize AI intentionally lazy or if key exists
         try:
             self.ai = AIExtractor()
-        except:
+        except Exception:
             print("Warning: AI Extractor not initialized (Missing Key?)")
             self.ai = None
 
@@ -46,7 +47,8 @@ class DataManager:
                 sheets = pd.read_excel(filepath, sheet_name=None)
                 sheet_stats = []
                 for sheet_name, df in sheets.items():
-                    if df.empty or len(df.columns) < 2: continue
+                    if df.empty or len(df.columns) < 2:
+                        continue
                     
                     # Split sheet into chunks of 50 rows to prevent AI truncation/summarization
                     chunk_size = 50
@@ -66,9 +68,12 @@ class DataManager:
                             
                             # Keep metadata from the first valid chunk result
                             if final_data["vendor"] == "Unknown":
-                                if data.get('vendor'): final_data["vendor"] = data.get('vendor')
-                                if data.get('date'): final_data["date"] = data.get('date')
-                                if data.get('offer_number'): final_data["offer_number"] = data.get('offer_number')
+                                if data.get('vendor'):
+                                    final_data["vendor"] = data.get('vendor')
+                                if data.get('date'):
+                                    final_data["date"] = data.get('date')
+                                if data.get('offer_number'):
+                                    final_data["offer_number"] = data.get('offer_number')
                     
                     sheet_stats.append(f"{sheet_name}: {sheet_item_count}")
                     print(f"✅ Extracted total {sheet_item_count} items from sheet '{sheet_name}'")
@@ -173,28 +178,32 @@ class DataManager:
         if date_str and len(date_str) > 5:
             try:
                 return datetime.strptime(date_str, "%Y-%m-%d").date()
-            except: pass
+            except Exception:
+                pass
             
         # 2. Try Filename (Regex for YYYY-MM-DD or DD.MM.YYYY)
-        import re
         fname = os.path.basename(filepath)
         # Match 2024-01-01
         m = re.search(r'20\d{2}-\d{2}-\d{2}', fname)
         if m:
-            try: return datetime.strptime(m.group(0), "%Y-%m-%d").date()
-            except: pass
+            try:
+                return datetime.strptime(m.group(0), "%Y-%m-%d").date()
+            except Exception:
+                pass
             
         # Match 15.01.2024
         m = re.search(r'(\d{1,2})\.(\d{1,2})\.(20\d{2})', fname)
         if m:
-            try: return datetime.strptime(f"{m.group(3)}-{m.group(2)}-{m.group(1)}", "%Y-%m-%d").date()
-            except: pass
+            try:
+                return datetime.strptime(f"{m.group(3)}-{m.group(2)}-{m.group(1)}", "%Y-%m-%d").date()
+            except Exception:
+                pass
 
         # 3. Fallback to File Modification Time
         try:
             timestamp = os.path.getmtime(filepath)
             return datetime.fromtimestamp(timestamp).date()
-        except:
+        except Exception:
             return datetime.now().date()
 
     def check_outliers(self, item_id):

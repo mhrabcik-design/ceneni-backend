@@ -12,7 +12,6 @@ Usage:
 
 import os
 import sys
-import time
 import json
 import signal
 import argparse
@@ -127,7 +126,7 @@ def status_server():
             
     print("\n=== Preview Status ===")
     if running:
-        print(f"🟢 Status: Running")
+        print("🟢 Status: Running")
         print(f"🔢 PID: {pid}")
         print(f"🌐 URL: {url} (Likely)")
         print(f"📝 Logs: {LOG_FILE}")

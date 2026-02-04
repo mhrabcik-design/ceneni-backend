@@ -10,13 +10,15 @@ class SmartMatcher:
         self.db = db
 
     def find_best_match(self, query):
-        if not query: return None
+        if not query:
+            return None
         
         # Clean query
         q_clean = query.lower().replace(',', ' ').replace('/', ' ').replace('(', ' ').replace(')', ' ').strip()
         words = [w for w in q_clean.split() if len(w) > 2]
         
-        if not words: return None
+        if not words:
+            return None
         
         print(f"Matching query: '{query}'")
         

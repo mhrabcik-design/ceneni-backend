@@ -1,7 +1,6 @@
 import os
 import difflib
 import re
-from datetime import datetime
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, Date, DateTime, ForeignKey, func, select, or_, text
 
 class PriceDatabase:
@@ -57,7 +56,8 @@ class PriceDatabase:
                 if "postgresql" in str(self.engine.url):
                     check_sql = text("SELECT 1 FROM information_schema.columns WHERE table_name='sources' AND column_name='source_type'")
                     exists = conn.execute(check_sql).fetchone()
-                    if exists: return
+                    if exists:
+                        return
                 else:
                     # Generic check for SQLite/others
                     conn.execute(text("SELECT source_type FROM sources LIMIT 1"))
@@ -94,7 +94,8 @@ class PriceDatabase:
 
     def delete_items(self, item_ids):
         """Delete multiple items and their prices."""
-        if not item_ids: return False
+        if not item_ids:
+            return False
         with self.engine.connect() as conn:
             # Delete prices first
             conn.execute(self.prices.delete().where(self.prices.c.item_id.in_(item_ids)))
@@ -167,12 +168,14 @@ class PriceDatabase:
             if file_hash:
                 s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.file_hash == file_hash)
                 row = conn.execute(s).fetchone()
-                if row: return {"type": "hash", "filename": row.filename, "vendor": row.vendor, "id": row.id}
+                if row:
+                    return {"type": "hash", "filename": row.filename, "vendor": row.vendor, "id": row.id}
             
             if offer_number:
                 s = select(self.sources.c.id, self.sources.c.filename, self.sources.c.vendor).where(self.sources.c.offer_number == offer_number)
                 row = conn.execute(s).fetchone()
-                if row: return {"type": "offer", "filename": row.filename, "vendor": row.vendor, "id": row.id}
+                if row:
+                    return {"type": "offer", "filename": row.filename, "vendor": row.vendor, "id": row.id}
         return None
 
     def add_processed_file(self, filename, vendor, date_offer, items, file_hash=None, offer_number=None, source_type='SUPPLIER'):
@@ -213,10 +216,12 @@ class PriceDatabase:
             # Prepare data
             for it in items:
                 raw_extracted_name = it.get('raw_name') or it.get('item')
-                if not raw_extracted_name: continue
+                if not raw_extracted_name:
+                    continue
                 
                 name = self._clean_item_name(raw_extracted_name)
-                if not name: continue
+                if not name:
+                    continue
                 
                 norm_name = name.lower().strip()
                 
@@ -454,7 +459,8 @@ class PriceDatabase:
                 price_lab = float(it.get('price_labor', 0) or 0)
                 unit = it.get('unit', 'ks')
 
-                if not name: continue
+                if not name:
+                    continue
 
                 if item_id:
                     # Update Item Name
@@ -533,7 +539,8 @@ class PriceDatabase:
             scored = []
             seen_ids = set()
             for r in rows:
-                if r.id in seen_ids: continue
+                if r.id in seen_ids:
+                    continue
                 seen_ids.add(r.id)
                 
                 item_tokens = set(r.normalized_name.split())
@@ -558,7 +565,8 @@ class PriceDatabase:
         - Removes sequential IDs (1., a), 10., etc.)
         - Removes bullet points
         """
-        if not name: return ""
+        if not name:
+            return ""
         
         # 1. Remove line breaks and tabs
         name = name.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
