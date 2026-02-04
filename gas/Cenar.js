@@ -39,12 +39,124 @@ function onOpen() {
         .addItem('🔍 Filtrovat DB podle výběru', 'filterAdminSheetBySelection')
         .addItem('🚫 Zrušit filtr v DB', 'clearAdminFilter')
         .addSeparator()
-        .addItem('⚙️ Správa: Načíst databázi', 'loadAdminSheet')
-        .addItem('💾 Správa: Uložit změny', 'syncAdminSheet')
-        .addItem('🗑️ Správa: SMAZAT VÝBĚR', 'deleteSelectedAdminItems')
+        .addSubMenu(ui.createMenu('⚙️ Správa Databáze')
+            .addItem('Načíst položky', 'loadAdminSheet')
+            .addItem('Uložit změny', 'syncAdminSheet')
+            .addItem('Smazat vybrané položky', 'deleteSelectedAdminItems'))
+        .addSubMenu(ui.createMenu('🧠 Správa Aliasů (Učení)')
+            .addItem('Zobrazit naučené aliasy', 'loadAliasesSheet')
+            .addItem('Smazat vybrané aliasy', 'deleteSelectedAliases'))
         .addSeparator()
         .addItem('🧨 RESET CELÉ DATABÁZE', 'resetDatabaseWithConfirmation')
         .addToUi();
+}
+
+/**
+ * Načte všechny naučené aliasy do nového listu
+ */
+function loadAliasesSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName("ADMIN_ALIASY");
+
+    if (!sheet) {
+        sheet = ss.insertSheet("ADMIN_ALIASY");
+    }
+
+    sheet.clear();
+    const headers = [["ID Aliasu", "ID Položky", "Hledaný výraz (Alias)", "Cílová položka v DB"]];
+    sheet.getRange(1, 1, 1, headers[0].length).setValues(headers).setBackground("#fef7e0").setFontWeight("bold");
+
+    const url = `${API_BASE_URL}/admin/aliases`;
+    const options = {
+        'method': 'get',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            const data = JSON.parse(response.getContentText());
+            if (data && data.length > 0) {
+                const rows = data.map(al => [
+                    al.id,
+                    al.item_id,
+                    al.alias,
+                    al.item_name
+                ]);
+                sheet.getRange(2, 1, rows.length, headers[0].length).setValues(rows);
+                sheet.setFrozenRows(1);
+                sheet.autoResizeColumns(1, 4);
+                SpreadsheetApp.getUi().alert(`Načteno ${data.length} naučených aliasů.`);
+            } else {
+                SpreadsheetApp.getUi().alert("Zatím nebyli naučeni žádné aliasy.");
+            }
+        }
+    } catch (e) {
+        SpreadsheetApp.getUi().alert("Chyba při načítání aliasů: " + e.message);
+    }
+}
+
+/**
+ * Smaže vybrané aliasy z databáze
+ */
+function deleteSelectedAliases() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("ADMIN_ALIASY");
+    if (!sheet || ss.getActiveSheet().getName() !== "ADMIN_ALIASY") {
+        SpreadsheetApp.getUi().alert("Tato funkce funguje pouze v listu ADMIN_ALIASY.");
+        return;
+    }
+
+    const range = sheet.getActiveRange();
+    const values = range.getValues();
+    const startRow = range.getRow();
+    const aliasIds = [];
+
+    // Posbírat ID z prvního sloupce vybrané oblasti
+    for (let i = 0; i < values.length; i++) {
+        const id = sheet.getRange(startRow + i, 1).getValue();
+        if (id && !isNaN(id)) {
+            aliasIds.push(parseInt(id));
+        }
+    }
+
+    if (aliasIds.length === 0) {
+        SpreadsheetApp.getUi().alert("Nebyly vybrány žádné aliasy s ID.");
+        return;
+    }
+
+    const ui = SpreadsheetApp.getUi();
+    const confirm = ui.alert('Potvrdit smazání', `Opravdu chcete zapomenout ${aliasIds.length} naučených aliasů?`, ui.ButtonSet.YES_NO);
+    if (confirm !== ui.Button.YES) return;
+
+    const url = `${API_BASE_URL}/admin/aliases/batch-delete`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify(aliasIds),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const res = UrlFetchApp.fetch(url, options);
+        if (res.getResponseCode() === 200) {
+            // Smazat řádky z listu
+            const allData = sheet.getDataRange().getValues();
+            for (let i = allData.length - 1; i >= 1; i--) {
+                if (aliasIds.includes(parseInt(allData[i][0]))) {
+                    sheet.deleteRow(i + 1);
+                }
+            }
+            ui.alert(`Smazáno ${aliasIds.length} aliasů.`);
+        } else {
+            ui.alert("Chyba při mazání: " + res.getContentText());
+        }
+    } catch (e) {
+        ui.alert("Chyba aplikace: " + e.message);
+    }
 }
 
 function showSidebar() {

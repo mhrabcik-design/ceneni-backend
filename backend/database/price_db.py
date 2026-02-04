@@ -208,6 +208,20 @@ class PriceDatabase:
             conn.commit()
             return True
 
+    def delete_alias(self, alias_id):
+        """Delete a single alias by ID."""
+        with self.engine.connect() as conn:
+            conn.execute(self.item_aliases.delete().where(self.item_aliases.c.id == alias_id))
+            conn.commit()
+
+    def delete_aliases(self, alias_ids):
+        """Batch delete aliases by IDs."""
+        if not alias_ids:
+            return
+        with self.engine.connect() as conn:
+            conn.execute(self.item_aliases.delete().where(self.item_aliases.c.id.in_(alias_ids)))
+            conn.commit()
+
     def get_all_aliases(self):
         """Returns all aliases stored in the database."""
         with self.engine.connect() as conn:

@@ -219,6 +219,12 @@ def get_aliases():
     """List all learned aliases for debugging."""
     return manager.db.get_all_aliases()
 
+@app.post("/admin/aliases/batch-delete")
+def batch_delete_aliases(alias_ids: List[int]):
+    """Delete multiple aliases by their IDs."""
+    manager.db.delete_aliases(alias_ids)
+    return {"status": "success", "deleted_count": len(alias_ids)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
