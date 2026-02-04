@@ -19,7 +19,7 @@ Backend i Frontend jsou plně připraveny na **Alias Systém**. Systém se učí
 - ✅ **Security**: PASSED
 - ✅ **Lint**: PASSED
 - ✅ **Schema**: PASSED (Updated with item_aliases)
-- ❌ **Tests**: FAILED (Nutno vytvořit sadu unit testů).
+- ✅ **Tests**: PASSED (4 functional tests passing via pytest)
 
 ### 🔧 Aktuální konfigurace
 - **Backend API**: `https://ceneni-backend.onrender.com`

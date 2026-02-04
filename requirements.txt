@@ -11,3 +11,5 @@ sqlalchemy
 psycopg2-binary
 tomli
 pymupdf
+pytest
+httpx
