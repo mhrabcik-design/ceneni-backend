@@ -1,42 +1,38 @@
-# Session Handoff - 2026-02-04 (Update: Mainframe Transition)
+# Session Handoff - 2026-02-04 (Update: Alias System Complete)
 
 ## 🎯 Aktuální stav projektu
-Projekt je ve stabilizovaném stavu "Zero Bug Policy". Backend byl kompletně vyčištěn od lint chyb a logika matchování byla zpevněna.
+Backend je rozšířen o **Alias Systém**. Systém se nyní dokáže učit z manuálních výběrů uživatele a zlepšovat budoucí výsledky vyhledávání.
 
 ### ✅ Dokončeno (Dnes)
-1. **Kompletní Linting Backend**:
-   - Nainstalován a spuštěn `ruff`.
-   - Opraveno 130+ chyb (bare excepts, import order, multi-line statements).
-   - Backend nyní splňuje standard PEP8.
-2. **Git & GitHub Sync**:
-   - Všechny změny pushnuty na `main`.
-   - Nasazeno na Render (automatický deploy).
-3. **Stabilizace GAS-Backend Bridge**:
-   - Opravena tolerance pro float precision (0.01) v `sync_admin_items`.
-   - Vyřešeny problémy s chybějícím `os` modulem v `data_manager.py`.
+1. **Alias Systém (Backend)**:
+   - Nová tabulka `item_aliases` v DB.
+   - Endpoint `POST /feedback/learn` pro příjem zpětné vazby.
+   - Vylepšený vyhledávací algoritmus (prohledává názvy i aliasy).
+   - Sloučeno (merged) do `main` a pushnuto na GitHub.
+2. **Backend Linting & Stabilizace**:
+   - Kompletní vyčištění kódu (ruff).
+   - Oprava float precision a `os` importů.
+3. **Deploy**:
+   - Vše pushnuto na GitHub, běží automatický deploy na Render.
 
 ### 🏁 Stav Checklistu
 - ✅ **Security**: PASSED
 - ✅ **Lint**: PASSED
-- ✅ **Schema**: PASSED
-- ❌ **Tests**: FAILED (Doinstalován `pytest`, ale v projektu zatím nejsou žádné `.py` testy – nalezena 0).
+- ✅ **Schema**: PASSED (Updated with item_aliases)
+- ❌ **Tests**: FAILED (Existuje test_alias.py, ale pytest zatím nenašel standardní .py testy).
 
-### 🔧 Aktuální konfigurace (Mainframe připomenutí)
-- **Backend API**: `https://ceneni-backend.onrender.com`
-- **Sloupce v Google Sheets**:
-  - Popis: **C** (sloupec 3)
-  - Materiál: **E** (sloupec 5)
-  - Práce: **F** (sloupec 6)
-- **Logika Price Selection**: Podporuje manuální výběr z top 5 kandidátů v sidebaru.
+### 🔧 Aktuální konfigurace
+- **Feedback Endpoint**: `https://ceneni-backend.onrender.com/feedback/learn`
+- **Payload**: `{ "query": "původní dotaz", "item_id": integer }`
 
-### 📋 Příští kroky (Draft pro novou session)
-1. **Aliasový systém** (Větev: `feature/alias-system`):
-   - Učení se z manuálních výběrů (pokud uživatel vybere kandidáta, systém si to zapamatuje jako alias).
-2. **Vytvoření Unit Testů**:
-   - Vytvořit `backend/tests/test_api.py` pro 100% zelený checklist.
-3. **Cache**:
-   - Re-implementace cache až po plné stabilizaci alias systému.
+### 📋 Příští kroky
+1. **Frontend Integration (GAS)**:
+   - Upravit Google Apps Script sidebaru tak, aby při "Aplikovat cenu" (nebo při manuálním výběru) odeslal feedback na `/feedback/learn`.
+2. **Unit Testy**:
+   - Přenést `test_alias.py` do standardní struktury `backend/tests/`.
+3. **Cache Re-evaluation**:
+   - Zvážit vliv aliasů na cachování (alias by měl invalidovat cache pro daný string).
 
 ---
 
-**Poznámka pro "Mainframe":** Před zahájením vývoje Alias systému doporučuji vytvořit novou větev `git checkout -b feature/alias-system`. Kód je čistý a připravený.
+**Poznámka:** Veškerý kód je v `main` větvi. Větev `feature/alias-system` můžete smazat.
