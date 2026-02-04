@@ -400,6 +400,44 @@ function fetchMatch(description, priceType, threshold) {
 }
 
 /**
+ * Bulk variant of fetchMatch - sends all items in a single HTTP request
+ * @param {Array<string>} descriptions - Array of item descriptions
+ * @param {string} priceType - 'material' or 'labor'
+ * @param {number} threshold - Match threshold
+ * @returns {Object} - {description: matchResult}
+ */
+function fetchMatchBulk(descriptions, priceType, threshold) {
+    if (!descriptions || descriptions.length === 0) return {};
+
+    const settings = getSettings();
+    const url = `${API_BASE_URL}/match`;
+    const options = {
+        'method': 'post',
+        'contentType': 'application/json',
+        'headers': { 'bypass-tunnel-reminder': 'true' },
+        'payload': JSON.stringify({
+            'items': descriptions,
+            'type': priceType || settings.priceType,
+            'threshold': threshold || settings.threshold
+        }),
+        'muteHttpExceptions': true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        if (response.getResponseCode() === 200) {
+            return JSON.parse(response.getContentText());
+        } else {
+            Logger.log(`Bulk API error: ${response.getResponseCode()} - ${response.getContentText()}`);
+        }
+    } catch (e) {
+        Logger.log("Chyba při bulk volání API: " + e.message);
+        SpreadsheetApp.getUi().alert(`Chyba komunikace se serverem: ${e.message}`);
+    }
+    return {};
+}
+
+/**
  * Získá kandidáty pro aktuálně vybranou buňku (pokud je v cenovém sloupci Materiál nebo Práce)
  */
 function getActiveCellContext() {
