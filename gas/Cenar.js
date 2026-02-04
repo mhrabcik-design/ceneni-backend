@@ -298,11 +298,12 @@ function priceSelectionDual(descColLetter, materialColLetter, laborColLetter) {
     // STEP 4: Bulk fetch LABOR prices
     const laborResults = fetchMatchBulk(itemsToPrice, 'labor', settings.threshold);
 
-    // STEP 4: Apply results to cells
+    // STEP 5: Apply results to cells (row by row)
     let matchesFound = 0;
 
-    for (const description of itemsToPrice) {
-        const currentRow = rowMap[description];
+    for (const item of rowData) {
+        const currentRow = item.row;
+        const description = item.description;
 
         // Apply MATERIAL result
         const matchMaterial = materialResults[description];
